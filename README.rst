@@ -1,3 +1,14 @@
+.. image:: https://api.codeclimate.com/v1/badges/5f489830d64da789bce2/maintainability
+   :target: https://codeclimate.com/github/fabiommendes/ox/maintainability
+   :alt: Maintainability
+.. image:: https://api.codeclimate.com/v1/badges/5f489830d64da789bce2/test_coverage
+   :target: https://codeclimate.com/github/fabiommendes/ox/test_coverage
+   :alt: Test Coverage
+.. image:: https://img.shields.io/github/license/fabiommendes/ox
+   :alt: GitHub
+.. image:: https://img.shields.io/pypi/v/ox-parser
+   :alt: PyPI
+
 Ox is simple "compiler of compilers" framework based on the excellent Lark
 library.
 

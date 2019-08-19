@@ -32,6 +32,7 @@ requires = [
 test = [
     "pytest",
     "pytest-cov",
+    "mock",
     "manuel",
 ]
 doc = [
@@ -46,4 +47,4 @@ dev = [
 Documentation = "https://ox.readthedocs.io/en/latest/"
 
 [tool.flit.scripts]
-flit = "ox.cli:main"
+ox = "ox.cli:main"
