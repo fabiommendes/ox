@@ -22,7 +22,7 @@ matrix:
      dist: xenial
 
 install:
-  - pip install flit flake8 black
+  - pip install flit flake8 black tox
 
 script:
   - tox
