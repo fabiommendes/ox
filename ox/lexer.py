@@ -28,7 +28,7 @@ class Lexer:
         return list(tks) if fn else tks
 
 
-def lexer(grammar=None, *, ignore=None, **kwargs) -> Lexer:
+def lexer(grammar=None, *args, ignore=None, **kwargs) -> Lexer:
     """
     Create a lexer function from token declarations.
     """
@@ -37,12 +37,17 @@ def lexer(grammar=None, *, ignore=None, **kwargs) -> Lexer:
     functions = {k.upper(): v for k, v in kwargs.items() if k.islower()}
     rules = {k: v for k, v in kwargs.items() if k.isupper()}
     bad = {k for k in kwargs if k not in rules and not k.islower()}
+    if args:
+        extra, = args
+        rules.update(rules)
     if any(bad):
         raise TypeError(f"invalid arguments: {bad}")
     if grammar and rules:
         raise ValueError(
             "cannot specify rules by keyword and grammar string simultaneously"
         )
+    if isinstance(ignore, str):
+        ignore = ignore.split(',')
 
     # Create a Lark grammar for the given lexing rules
     if grammar:

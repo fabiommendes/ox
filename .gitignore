@@ -28,3 +28,4 @@ dist/
 # Testing and temporary files
 .tox/
 .pytest_cache/
+.hypothesis/
