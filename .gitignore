@@ -1,0 +1,30 @@
+# Cached results
+__pycache__/
+*.egg-info/
+
+# Unwanted files
+parsetab.py
+parser.out
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.dll
+*.egg
+*.sqlite3
+.coverage
+.vscode/
+htmlcov/
+
+# Build directories
+docs/_build/
+build/
+dist/
+
+# IDEs
+.idea/
+.cache/
+
+# Testing and temporary files
+.tox/
+.pytest_cache/
