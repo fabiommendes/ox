@@ -87,14 +87,14 @@ Usage
 
 We show how to build a simple calculator using Ox. The following examples
 explicitly separate parsing into separate steps of lexical, syntactic and semantic
-analysis and code generation. Even with Ox, it is possible to blur those
-lines a little bit, but you have to read the documentation to know how to do that ;-)
+analysis and code generation. Compilers for complex languages usually blur of those
+lines a little bit, and Ox has some support for that.
 
 Lexer
 -----
 
-Ox can build a lexer function from a list of token names associated with their
-corresponding regular expressions:
+A lexer reads a string and generate a sequence of tokens. Ox builds the lexer function from
+a list of token names associated with their corresponding regular expressions:
 
 .. code-block:: python
 
@@ -136,17 +136,10 @@ The next step is to pass the list of tokens to a parser in order to
 generate the parse tree. We can easily declare a parser in Ox from a mapping 
 of grammar rules to their corresponding handler functions.
 
-Each handler function receives a number of inputs from its corresponding
-grammar rule and return an AST node. In the example bellow, we return tuples
-to build our AST as LISP-like S-expressions.
-
 .. code-block:: python
 
+    # Handle binary operations
     binop = lambda x, op, y: (op.value, x, y)
-
-Now the rules:
-
-.. code-block:: python
 
     parser = ox.parser(lexer,
     	expr={
@@ -164,7 +157,16 @@ Now the rules:
     )
 
 
-The parser consumes a list of tokens and convert them to an AST:
+The parser consumes a list of tokens and convert them to an AST passing each
+element (terminals and non-terminals) to their corresponding handler function.
+The rule "expr: expr PLUS term", for instance, produces tree elements, an "expr"
+node, followed by a "PLUS" terminal and a "term" node. Those arguments are passed
+to the handler function ``binop``, which generates a node of the syntax tree.
+
+In the example above, we create tuples to build our AST as LISP-like S-expressions.
+
+The resulting parser is again just a function that receives a string of code
+and return the abstract syntax tree.
 
 >>> parser('2 + 2 * 20')
 ('+', 2.0, ('*', 2.0, 20.0))
@@ -173,8 +175,8 @@ The parser consumes a list of tokens and convert them to an AST:
 Interpreter
 -----------
 
-The AST makes it easy to analyze and evaluate an expression. We can
-write a simple evaluator as follows:
+We can easily evaluate an algebraic expression from syntax trees.
+Bellow is a very straightforward expression evaluator:
 
 .. code-block:: python
 
@@ -182,34 +184,223 @@ write a simple evaluator as follows:
 
     operations = {'+': op.add, '-': op.sub, '*': op.mul, '/': op.truediv}
     
-    def eval_ast(node):
+    def eval_ast(node, env):
         if isinstance(node, tuple):
             head, *tail = node
             func = operations[head]
-            args = (eval_ast(x) for x in tail)
+            args = (eval_ast(x, env) for x in tail)
             return func(*args)
+        elif isinstance(node, str):
+            return env[node]
         else:
             return node
 
+The user should pass a dictionary of all free variables with their corresponding
+numeric values.
 
 The eval function receives an AST, but we can easily compose it with the other
-functions in order to accept string inputs. (Ox functions understand sidekick's 
-pipeline operators. The arrow operator ``>>`` composes two functions by passing
-the output of each function to the function in the pipeline following the arrow
-direction).
+functions in order to accept string inputs.
 
 >>> eval_expr = parser >> eval_ast
 >>> eval_expr('2 + 2 * 20')
 42.0
+
+Ox functions understand sidekick's pipeline operators. The arrow operator ``>>``
+composes two functions by passing the output of each function to the function
+in the pipeline following the arrow direction
 
 We can call this function in a loop to have a nice calculator written with only
 a few lines of Python code!
 
 .. code-block:: python
 
-    def eval_loop():
+    def eval_loop(env):
         expr = input('expr: ')
-        print('result:', eval_expr(expr))
+        print('result:', eval_expr(expr, env))
+
+
+Compiler
+--------
+
+The final step is to build a compiler. The goal with this simple calculator is to read
+a string containing a mathematical expression and create a Python function that evaluates
+this code. The function receive the missing variables as keyword arguments.
+This is somewhat of a pointless exercise since our calculator language is
+already a subset of Python. Anyway, it demonstrates how to approach code generation
+in Ox and showcase some of its capabilities for analysing Python code.
+
+Notice how the main compiler function looks deceptively like the
+interpreter.
+
+.. code-block:: python
+
+    import operator as op
+    from ox.target.python import py
+
+    operations = {'+': op.add, '-': op.sub, '*': op.mul, '/': op.truediv}
+
+    def compile_expression(node):
+        if isinstance(node, tuple):
+            head, *tail = node
+            func = operations[head]
+            args = (compile_expression(x) for x in tail)
+            return func(*args)
+        elif isinstance(node, str):
+            return py[node]
+        else:
+            return py(node)
+
+There are a few notable differences: we do not pass an environment dictionary to the
+compiler and the leaf nodes are wrapped into the ``py`` special object.  Let us call
+this function to check what it does:
+
+>>> compile_expression(parser('1 + 1'))
+py['1 + 1']
+
+The py object is an expression factory that construct Python abstract syntax
+tree nodes by always selecting the tree node that replicates any operation
+performed with it. For instance, accessing an attribute creates a node that
+represents a Python name:
+
+>>> py.x
+py['x']
+
+Add it with a value or to other nodes creates an AST that represents the sum
+of two expressions
+
+>>> py.x + py.y + 1
+py['x + y + 1']
+
+The resulting value is always a wrapped AST node that replicates the operation
+performed to it. It accepts almost all Python operators, attribute access,
+function calling, and indexing. It fails with most named binary operators like "and",
+"or", "is" and "is not".
+
+S-Expression notation
+.....................
+
+We can construct more complex AST nodes calling the py object as if it is
+constructing a LISP-like S-Expression. The idea is that any tree node can
+be represented as a "head" symbol and a list of arguments. The head is
+always an string, and the list of arguments depends on the expression
+being generated. Usually, this is very straightforward, like
+
+>>> py('return', py.x)
+py['return x']
+
+Python syntax, however, can be very subtle and complicated in some places,
+and you'll surely have to consult the documentation to understand those
+corner cases. That said, we need to know how to declare a function to continue
+with our little project. This is one of those complicated bits since
+argument specification in Python can be really non-trivial.
+
+Our goal is to convert something like this::
+
+    (2 * x) + 1
+
+To something like this:
+
+.. code-block:: python
+
+    def func(x):
+        return (2 * x) + 1
+
+A function node is declared as a `def`` S-Expression with 3 arguments: the name
+the list of arguments, and the body as a list of statements.
+
+>>> py('def', py.func, [py.x], [py('return', (2 * py.x) + 1)])
+
+It accepts more complicated declarations with keyword arguments, type annotations,
+variadic arguments, etc. We will not cover that for now, but we encourage you to
+try figuring out how those advanced features work.
+
+
+Extracting trees from py objects
+................................
+
+The py object provides a powerful mechanism to generate syntax trees, but it has a serious
+limitation: the wrapped AST cannot have any method since calling methods
+and accessing attributes simply create new and more complex nodes.
+
+>>> (py.x + py.y).source()
+py['(x + y).source()']
+
+Once the basic abstract tree is created, it must be extracted from the
+factory object. This is done with the unwrap function
+
+>>> from ox.ast.python import unwrap
+>>> unwrap(py.x + py.y)
+BinOp('+', py.x, py.y)
+
+The resulting objects have many useful tree-related methods for introspection,
+searching, transformation, and code generation. For instance, we can convert
+any tree to a string of Python code calling its source() method,
+
+>>> ast = py.x + py.y
+>>> ast.source()
+'x + y'
+
+Python AST nodes implement lots of useful functions. We refer for the documentation
+for a complete list, but let us investigate a few that may be relevant for us now.
+In order to complete our calculator, we need to inspect the free variables of the parsed
+expression tree. This is easily done:
+
+>>> list(ast.free_vars())
+['x', 'y']
+
+Ox can also evaluate expressions whose values we can determine statically. This
+is called "constant propagation" in compilers terminology and it is implemented
+by the simplify method. Consider the trivial expression,
+
+>>> ast = unwrap(py(40) + py(2))
+>>> ast
+BinOp('+', 40, 2)
+
+Now, let us simplify it to hold only the computed 42 number:
+
+>>> ast.simplify()
+Atom(42)
+
+Constant propagation is a subtle topic and is heavily dependent on typing information
+about each expression. For instance, we cannot simplify ``x + 40 + 2`` to ``x + 42``
+unless we know that x is an integer or some other compatible numeric type. Python
+is very dynamic and any class can override operators do do any funny stuff
+they like, including violating basic laws of arithmetic.
+
+
+Wrapping up
+...........
+
+We now know how to complete the puzzle for building a full compiler (or maybe
+should we say "transpiler") from *Calculator* to *Python*.
+
+.. code-block:: python
+
+    def compile_ast(ast, function_name='calc'):
+        expr = unwrap(compile_expression(ast))
+        expr = expr.simplify()
+        args = sorted(expr.free_vars())
+        fn = py('def', function_name, args, [
+            py('return', expr),
+        ])
+        return fn.source()
+
+
+    def compile_calculator(expr, function_name='calc'):
+        return compile_ast(parser(expr), function_name=function_name)
+
+Now we can simply call "compile_calculator" to convert it from *Calculator*
+to Python:
+
+>>> print(compile_ast('40 + 2 + x'))
+def calc(x):
+    return 42 + x
+
+We can make it available into our own Python code running it with eval():
+
+>>> func = eval(compile_ast('40 + 2 + x'))
+>>> func(1)
+43
 
 
 What about the name?
