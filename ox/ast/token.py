@@ -1,15 +1,5 @@
 from sidekick import Leaf
-
-
-def attr_property(prop, default=None, readonly=False):
-    """
-    Expose an attribute as a property.
-    """
-
-    prop = property(lambda x: x.attrs.get(prop, default))
-    if readonly:
-        return prop
-    return prop.setter(lambda x, v: x.attrs.__setitem__(prop, v))
+from .utils import attr_property
 
 
 # noinspection PyShadowingBuiltins

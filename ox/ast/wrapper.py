@@ -62,17 +62,25 @@ class WrapperMeta(type):
                  unary_operators=UNARY_OPERATORS):
         super().__init__(name, bases, ns)
 
-        cls._sexpr_heads = sexpr_heads = {}
+        cls.__sexpr_heads = sexpr_heads = {}
+        cls.__roots = roots = tuple(roots)
         for root in roots:
             sexpr_heads.update(root._meta.sexpr_symbol_map)
+
+        # Create unary and binary operators
         cls.make_operators(cls.make_binary_operator, binary_operators)
         cls.make_operators(cls.make_rbinary_operator, rbinary_operators)
         cls.make_operators(cls.make_unary_operator, unary_operators)
 
+        # Special methods
+        cls.__getattr__ = cls.make_getattr() or cls.__getattr__
+        cls.__getitem__ = cls.make_getitem() or cls.__getitem__
+        cls.__call__ = cls.make_fcall() or cls.__call__
+
     def make_operators(cls, factory, mapping):
         for op, method_name in mapping.items():
             try:
-                constructor = cls._sexpr_heads[op]
+                constructor = cls.__sexpr_heads[op]
                 method = factory(constructor, op)
                 setattr(cls, method_name, method)
             except KeyError:
@@ -111,14 +119,29 @@ class WrapperMeta(type):
 
         return unary_op
 
-    def make_function_call(cls):
-        raise NotImplementedError
+    def make_fcall(cls):
+        return cls.__get_role('fcall')
 
     def make_getitem(cls):
-        raise NotImplementedError
+        return cls.__get_role('getitem')
 
     def make_getattr(cls):
-        raise NotImplementedError
+        fn = cls.__get_role('getattr')
+        if fn is None:
+            return None
+
+        def __getattr__(self, attr):
+            return fn(unwrap(self), attr)
+
+        return __getattr__
+
+    def __get_role(cls, role):
+        for root in cls.__roots:
+            try:
+                return root._meta.wrapper_roles[role]
+            except KeyError:
+                pass
+        return None
 
 
 class Wrapper(metaclass=WrapperMeta):

@@ -22,7 +22,7 @@ class ASTMeta(type):
         if 'Meta' in ns:
             ns = dict(ns)
             del ns['Meta']
-        ns.setdefault('__slots__', tuple(ns.get('__annotations__', {})))
+        ns.setdefault('__slots__', get_slots(ns))
         return super().__new__(mcs, name, bases, ns)
 
     def __init__(cls, name, bases, ns):
@@ -83,6 +83,7 @@ class ASTMeta(type):
                     setattr(self, k, v)
                 else:
                     kwargs[k] = v
+
             for k in list(kwargs):
                 if k in children_set:
                     setattr(self, k, kwargs.pop(k))
@@ -94,6 +95,7 @@ class ASTMeta(type):
                         getattr(self, k)
                     except AttributeError:
                         raise TypeError(f'{k!r} not given')
+
             self._attrs = kwargs
 
         return _init
@@ -249,6 +251,12 @@ class Meta:
                 self.tag_attribute = first_arg
         self.children_attributes = tuple(self.children())
 
+        # Wrapper expressions
+        self.wrapper_roles = {} if self.is_root else self.root_meta.wrapper_roles
+        for role in ['getattr', 'getitem', 'fcall']:
+            if hasattr(cls, '_meta_' + role):
+                self.wrapper_roles[role] = getattr(cls, '_meta_' + role)
+
     def __repr__(self):
         return f'Meta({self.type.__name__})'
 
@@ -348,3 +356,8 @@ def sexpr(meta: Meta, symbol: str = None):
         return cls(*args, **kwargs)
 
     return sexpr_constructor
+
+
+def get_slots(ns):
+    annotations = ns.get('__annotations__', {})
+    return tuple(k for k, v in annotations.items() if is_ast_type(v))

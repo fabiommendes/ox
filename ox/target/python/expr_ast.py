@@ -20,6 +20,24 @@ class Expr(ast.Expr):
         abstract = True
 
 
+class ExprLeaf(Expr, ast.ExprLeaf):
+    """
+    Base class for Python Expression leaf nodes.
+    """
+
+    class Meta:
+        abstract = True
+
+
+class ExprNode(Expr, ast.ExprNode):
+    """
+    Base class for Python Expression leaf nodes.
+    """
+
+    class Meta:
+        abstract = True
+
+
 expr = Expr._meta.coerce
 register_expr = curry(2, expr.register)
 
@@ -27,15 +45,6 @@ register_expr = curry(2, expr.register)
 # ==============================================================================
 # LEAF NODES
 # ==============================================================================
-
-class ExprLeaf(Expr, ast.ExprLeaf):
-    """
-    Base class for Python Expression leaf nodes.
-    """
-
-    class Meta:
-        root = Expr
-        abstract = True
 
 
 class Atom(ExprLeaf, ast.AtomMixin):
@@ -47,13 +56,13 @@ class Atom(ExprLeaf, ast.AtomMixin):
     """
 
     class Meta:
-        # root = Expr
         types = PyAtom
 
     def _repr_as_child(self):
         return self._repr()
 
     def tokens(self, ctx):
+        # Ellipisis is repr'd as "Ellipisis"
         yield "..." if self.value is ... else repr(self.value)
 
 
@@ -65,22 +74,10 @@ class Name(ExprLeaf, ast.NameMixin):
     class Meta:
         types = str,
 
-    def _repr_as_child(self):
-        return self._repr()
-
 
 # ==============================================================================
 # REGULAR NODES
 # ==============================================================================
-
-class ExprNode(Expr, ast.ExprNode):
-    """
-    Base class for Python Expression leaf nodes.
-    """
-
-    class Meta:
-        root = Expr
-        abstract = True
 
 
 class And(ExprNode):
@@ -146,6 +143,15 @@ class BinOp(ExprNode, ast.BinaryOpMixin):
         yield f" {self.op.value} "
         wrap = self.check_wrap(self.rhs)
         yield from wrap_tokens(self.rhs.tokens(ctx), wrap=wrap)
+
+
+class GetAttr(ExprNode, ast.GetAttrMixin):
+    """
+    Get attribute expression.
+    """
+
+    expr: Expr
+    attr: str
 
 
 class Yield(ExprNode):

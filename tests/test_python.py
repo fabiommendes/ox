@@ -3,7 +3,8 @@ from hypothesis import given
 
 # from ox.target.python import List, Tuple, Set, Dict,
 from ox.hypothesis import py_value
-from ox.target.python import expr, Atom, BinOp, Name, py
+from ox.target.python import Atom, BinOp, Name, GetAttr
+from ox.target.python import expr, py, unwrap
 
 
 class TestAstNodeConstruction:
@@ -40,6 +41,15 @@ class TestAstNodeConstruction:
         expr2 = BinOp("+", Name("x"), Name("y"))
         assert expr1 == expr2
 
+    def test_simple_ast_constructors(self):
+        e = GetAttr(Name('x'), 'foo')
+        print(GetAttr.attr)
+        assert hasattr(GetAttr, 'attr')
+        assert e.expr == Name('x')
+        assert e.attrs == {'attr': 'foo'}
+        assert e.attr == 'foo'
+        assert e.source() == 'x.foo'
+
     def _test_container_nodes(self):
         assert expr([1, 2]) == List([Atom(1), Atom(2)])
         assert expr((1, 2)) == Tuple([Atom(1), Atom(2)])
@@ -58,6 +68,11 @@ class TestWrapperObject:
         # assert str(a(1)) == "py['(1)(1)']"
         # assert str(a[1]) == "py['(1)[1]']"
         # assert str(+a) == "py['+1']"
+
+    def test_wrapped_expressions(self):
+        x = py.x
+        src = (lambda x: unwrap(x).source())
+        assert src(x.foo) == 'x.foo'
 
 
 @pytest.mark.hypothesis

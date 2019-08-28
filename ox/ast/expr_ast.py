@@ -3,6 +3,7 @@ from typing import Type
 
 from sidekick.tree import SExprBase
 from .base import AST, Leaf, Node
+from .utils import wrap_tokens, from_template, attr_property
 from ..operators import BinaryOp, Op
 
 
@@ -91,6 +92,9 @@ class ExprLeaf(Leaf, Expr):
     class Meta:
         abstract = True
 
+    def _repr_as_child(self):
+        return self._repr()
+
 
 class NameMixin(ExprLeaf):
     """
@@ -164,6 +168,40 @@ class SingleCommandMixin(ExprNode):
     class Meta:
         abstract = True
         command = "{expr}"
+
+
+class GetAttrMixin(ExprNode):
+    """
+    Attribute access (<expr>.<name>).
+    """
+    expr: Expr
+    attr: str = attr_property('attr')
+
+    class Meta:
+        abstract = True
+        command = '{expr}.{attr}'
+
+    @classmethod
+    def _meta_getattr(cls, expr, attr):
+        """
+        Implement constructor that creates a attribute access expression.
+        """
+        return cls(expr, attr)
+
+    def wrap_expr_with(self):
+        """
+        Return a pair of parenthesis or other enclosing brackets.
+
+        Must return True, False or a pair of enclosing tokens.
+        """
+        return False
+
+    def tokens(self, ctx):
+        ctx = {
+            'expr': wrap_tokens(self.expr.tokens(ctx), self.wrap_expr_with()),
+            'attr': [self.attr],
+        }
+        yield from from_template(self._meta.command, ctx)
 
 
 class UnaryOpMixin(ExprNode):
