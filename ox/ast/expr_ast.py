@@ -151,6 +151,9 @@ class ExprNode(Node, SExprBase, Expr):
 
     __eq__ = SExprBase.__eq__
 
+    def _repr(self, children=True):
+        return Node._repr(self, children=children)
+
     def __repr__(self):
         args = []
         for attr in self._meta.annotations:

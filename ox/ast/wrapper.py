@@ -78,6 +78,16 @@ class WrapperMeta(type):
         cls.__call__ = cls.make_fcall() or cls.__call__
 
     def make_operators(cls, factory, mapping):
+        """
+        Create operators from factory function and mapping.
+
+        Args:
+            factory:
+                Function that receive (constructor, operator), where constructor
+                is a (e1, e2) -> e3 and is used to construct the wrapped dunder method.
+            mapping:
+                A mapping from operator to constructor function.
+        """
         for op, method_name in mapping.items():
             try:
                 constructor = cls.__sexpr_heads[op]
@@ -87,6 +97,10 @@ class WrapperMeta(type):
                 pass
 
     def make_binary_operator(cls, fn, op):
+        """
+        Create a method that wraps a binary operator 'op' from a function 'fn'
+        that receives two expression instances.
+        """
         from .base import AST
 
         def bin_op(wrapped, other):
@@ -99,6 +113,13 @@ class WrapperMeta(type):
         return bin_op
 
     def make_rbinary_operator(cls, fn, op):
+        """
+        Create a method that wraps a reverse binary operator 'op' from a
+        function 'fn'  that receives two expression instances.
+
+        It uses the same function as make_binary_operator. The wrapper flips the
+        order of arguments.
+        """
         from .base import AST
 
         def bin_op(wrapped, other):
@@ -111,6 +132,10 @@ class WrapperMeta(type):
         return bin_op
 
     def make_unary_operator(cls, fn, op):
+        """
+        Create a method that wraps an unary operator 'op' from a function 'fn'
+        that receives a single expression instance.
+        """
         from .base import AST
 
         def unary_op(wrapped):
@@ -120,18 +145,43 @@ class WrapperMeta(type):
         return unary_op
 
     def make_fcall(cls):
-        return cls.__get_role('fcall')
+        """
+        Creates the __call__ method for wrapped instances.
+        """
+        fn = cls.__get_role('fcall')
+        if fn is None:
+            return None
+
+        def __call__(*args, **kwargs):
+            args = map(unwrap, args)
+            kwargs = {k: unwrap(v) for k, v in kwargs.items()}
+            return cls(fn(*args, **kwargs))
+
+        return __call__
 
     def make_getitem(cls):
-        return cls.__get_role('getitem')
+        """
+        Creates the __getitem__ method for wrapped instances.
+        """
+        fn = cls.__get_role('getitem')
+        if fn is None:
+            return None
+
+        def __getitem__(self, idx):
+            return cls(fn(unwrap(self), unwrap(idx)))
+
+        return __getitem__
 
     def make_getattr(cls):
+        """
+        Creates the __getattr__ method for wrapped instances.
+        """
         fn = cls.__get_role('getattr')
         if fn is None:
             return None
 
         def __getattr__(self, attr):
-            return fn(unwrap(self), attr)
+            return cls(fn(unwrap(self), unwrap(attr)))
 
         return __getattr__
 

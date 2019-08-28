@@ -3,7 +3,7 @@ from hypothesis import given
 
 # from ox.target.python import List, Tuple, Set, Dict,
 from ox.hypothesis import py_value
-from ox.target.python import Atom, BinOp, Name, GetAttr
+from ox.target.python import Atom, BinOp, Name, GetAttr, Call
 from ox.target.python import expr, py, unwrap
 
 
@@ -41,14 +41,17 @@ class TestAstNodeConstruction:
         expr2 = BinOp("+", Name("x"), Name("y"))
         assert expr1 == expr2
 
-    def test_simple_ast_constructors(self):
+    def test_getattr_constructor(self):
         e = GetAttr(Name('x'), 'foo')
-        print(GetAttr.attr)
-        assert hasattr(GetAttr, 'attr')
         assert e.expr == Name('x')
         assert e.attrs == {'attr': 'foo'}
         assert e.attr == 'foo'
         assert e.source() == 'x.foo'
+
+    def test_fcall_constructor(self):
+        e = Call.from_args(Name('foo'), Atom('bar'), kw=Atom(42))
+        assert e.expr == Name('foo')
+        assert e.source() == "foo('bar', kw=42)"
 
     def _test_container_nodes(self):
         assert expr([1, 2]) == List([Atom(1), Atom(2)])
@@ -71,8 +74,12 @@ class TestWrapperObject:
 
     def test_wrapped_expressions(self):
         x = py.x
+        y = py.y
+        fn = py.fn
         src = (lambda x: unwrap(x).source())
         assert src(x.foo) == 'x.foo'
+        assert src(fn(x)) == 'fn(x)'
+        assert src((x + y).method()) == '(x + y).method()'
 
 
 @pytest.mark.hypothesis

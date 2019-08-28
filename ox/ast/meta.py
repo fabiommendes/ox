@@ -55,8 +55,7 @@ class ASTMeta(type):
     def _generic_init_method(cls):
         meta = cls._meta
         posargs = tuple(meta.annotations)
-        children = tuple(k for k, v in meta.annotations.items()
-                         if issubclass(v, NodeOrLeaf))
+        children = tuple(k for k, v in meta.annotations.items() if is_ast_type(v))
         children_set = set(children)
         tag_attr = meta.tag_attribute
 

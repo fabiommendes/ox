@@ -1,9 +1,10 @@
-from typing import Union
+from typing import Union, Optional
 
+from ox.ast import Tree
 from sidekick import curry
 from .operators import UnaryOp as UnaryOpEnum, BinaryOp as BinaryOpEnum
 from ... import ast
-from ...ast.utils import wrap_tokens
+from ...ast.utils import wrap_tokens, attr_property
 
 PyAtom = (type(None), type(...), bool, int, float, complex, str, bytes)
 PyAtomT = Union[None, bool, int, float, complex, str, bytes]  # ..., NotImplemented
@@ -152,6 +153,101 @@ class GetAttr(ExprNode, ast.GetAttrMixin):
 
     expr: Expr
     attr: str
+
+    def wrap_expr_with(self):
+        expr = self.expr
+        if isinstance(expr, (BinOp, UnaryOp, And, Or)):
+            return True
+        if isinstance(expr, Atom) and isinstance(expr.value, (int, float, complex)):
+            return True
+        return False
+
+
+class Call(ExprNode):
+    """
+    Call expression with argument list.
+    """
+
+    expr: Expr
+    args: Tree
+
+    @classmethod
+    def make_args(*args, **kwargs):
+        """
+        Create args list from positional and keyword arguments.
+        """
+        cls, *args = args
+        children = list(cls._yield_args(args, kwargs))
+        return Tree('args', children)
+
+    @classmethod
+    def _yield_args(cls, args, kwargs):
+        for arg in args:
+            if isinstance(arg, str):
+                if arg.startswith('**'):
+                    yield Arg(Name(arg[2:]), name=None, stars=2)
+                elif arg.startswith('*'):
+                    yield Arg(Name(arg[1:]), name=None, stars=1)
+                else:
+                    raise ValueError(f'invalid argument specification {arg!r}')
+            else:
+                yield arg
+        for name, value in kwargs.items():
+            yield Arg(value, name=name, stars=0)
+
+    @classmethod
+    def from_args(*args, **kwargs):
+        cls, expr, *args = args
+        args = cls.make_args(*args, **kwargs)
+        return cls(expr, args)
+
+    _meta_fcall = from_args
+
+    def wrap_arg(self, arg):
+        """
+        Return true if it must wrap argument in parenthesis.
+        """
+        return False
+
+    def tokens(self, ctx):
+        expr = self.expr
+        if isinstance(expr, (BinOp, UnaryOp, And, Or)):
+            yield from wrap_tokens(self.expr.tokens(ctx))
+        elif isinstance(expr, Atom) and isinstance(expr.value, (int, float, complex)):
+            yield from wrap_tokens(self.expr.tokens(ctx))
+        else:
+            yield from self.expr.tokens(ctx)
+
+        children = iter(self.args.children)
+
+        yield "("
+        try:
+            arg = next(children)
+        except StopIteration:
+            pass
+        else:
+            yield from arg.tokens(ctx)
+            for arg in children:
+                yield ', '
+                yield from arg.tokens(ctx)
+        yield ")"
+
+
+class Arg(ExprNode):
+    """
+    Represents an argument in a function call.
+    """
+    expr: Expr
+    name: Optional[str] = attr_property('name')
+    stars: int = attr_property('stars')
+
+    def tokens(self, ctx):
+        if self.name:
+            yield self.name
+            yield '='
+        elif self.stars:
+            yield '*' * self.stars
+        yield from self.expr.tokens(ctx)
 
 
 class Yield(ExprNode):

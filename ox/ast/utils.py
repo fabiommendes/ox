@@ -74,7 +74,6 @@ def attr_property(name, default=None, readonly=False):
 
     @property
     def prop(self):
-        print('name', self.attrs)
         return self.attrs.get(name, default)
 
     if readonly:
