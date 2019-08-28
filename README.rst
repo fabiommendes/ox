@@ -201,22 +201,21 @@ numeric values.
 The eval function receives an AST, but we can easily compose it with the other
 functions in order to accept string inputs.
 
->>> eval_expr = parser >> eval_ast
+.. code-block:: python
+
+    def eval_expr(src, **kwargs):
+        return eval_ast(parser(src), env=kwargs)
 >>> eval_expr('2 + 2 * 20')
 42.0
 
-Ox functions understand sidekick's pipeline operators. The arrow operator ``>>``
-composes two functions by passing the output of each function to the function
-in the pipeline following the arrow direction
-
-We can call this function in a loop to have a nice calculator written with only
+We can call this function in a loop to create a nice calculator written with only
 a few lines of Python code!
 
 .. code-block:: python
 
-    def eval_loop(env):
+    def eval_loop(**kwargs):
         expr = input('expr: ')
-        print('result:', eval_expr(expr, env))
+        print('result:', eval_expr(expr, **kwargs))
 
 
 Compiler
@@ -255,7 +254,7 @@ compiler and the leaf nodes are wrapped into the ``py`` special object.  Let us 
 this function to check what it does:
 
 >>> compile_expression(parser('1 + 1'))
-py['1 + 1']
+py['1.0 + 1.0']
 
 The py object is an expression factory that construct Python abstract syntax
 tree nodes by always selecting the tree node that replicates any operation
@@ -280,9 +279,9 @@ S-Expression notation
 .....................
 
 We can construct more complex AST nodes calling the py object as if it is
-constructing a LISP-like S-Expression. The idea is that any tree node can
-be represented as a "head" symbol and a list of arguments. The head is
-always an string, and the list of arguments depends on the expression
+represented by LISP-like S-Expression. The idea is that any tree node is
+composed by a "head" symbol and a list of arguments. The head is
+usually an string, and the list of arguments depends on the expression
 being generated. Usually, this is very straightforward, like
 
 >>> py('return', py.x)
@@ -294,11 +293,13 @@ corner cases. That said, we need to know how to declare a function to continue
 with our little project. This is one of those complicated bits since
 argument specification in Python can be really non-trivial.
 
-Our goal is to convert something like this::
+Our goal is to convert an expression like this
+
+::
 
     (2 * x) + 1
 
-To something like this:
+into something like this
 
 .. code-block:: python
 
@@ -318,7 +319,7 @@ try figuring out how those advanced features work.
 Extracting trees from py objects
 ................................
 
-The py object provides a powerful mechanism to generate syntax trees, but it has a serious
+The ``py`` object provides a powerful mechanism to generate syntax trees, but it has a serious
 limitation: the wrapped AST cannot have any method since calling methods
 and accessing attributes simply create new and more complex nodes.
 
@@ -328,25 +329,25 @@ py['(x + y).source()']
 Once the basic abstract tree is created, it must be extracted from the
 factory object. This is done with the unwrap function
 
->>> from ox.ast.python import unwrap
+>>> from ox.ast import unwrap
 >>> unwrap(py.x + py.y)
-BinOp('+', py.x, py.y)
+BinOp(Op.ADD, Name('x'), Name('y'))
 
 The resulting objects have many useful tree-related methods for introspection,
-searching, transformation, and code generation. For instance, we can convert
+searching, transformation, and code generation. We can convert, for instance,
 any tree to a string of Python code calling its source() method,
 
->>> ast = py.x + py.y
+>>> ast = unwrap(py.x + py.y)
 >>> ast.source()
 'x + y'
 
-Python AST nodes implement lots of useful functions. We refer for the documentation
+Python AST nodes implement lots of useful functions. We refer to the documentation
 for a complete list, but let us investigate a few that may be relevant for us now.
 In order to complete our calculator, we need to inspect the free variables of the parsed
 expression tree. This is easily done:
 
->>> list(ast.free_vars())
-['x', 'y']
+>>> ast.free_vars()
+{'x', 'y'}
 
 Ox can also evaluate expressions whose values we can determine statically. This
 is called "constant propagation" in compilers terminology and it is implemented
@@ -354,7 +355,7 @@ by the simplify method. Consider the trivial expression,
 
 >>> ast = unwrap(py(40) + py(2))
 >>> ast
-BinOp('+', 40, 2)
+BinOp(Op.ADD, Atom(40), Atom(2))
 
 Now, let us simplify it to hold only the computed 42 number:
 
@@ -398,8 +399,8 @@ def calc(x):
 
 We can make it available into our own Python code running it with eval():
 
->>> func = eval(compile_ast('40 + 2 + x'))
->>> func(1)
+>>> expr = eval(compile_ast('40 + 2 + x'))
+>>> expr(x=1)
 43
 
 
@@ -409,4 +410,4 @@ What about the name?
 Ox was initially based on PLY, which is is a Pythonic implementation/interpretation
 of Yacc. The most widespread Yacc implementation is of course GNU Bison. We
 decided to keep the bovine theme alive and used Ox. The correct pronunciation
-(if we can impose such a thing) is in Portuguese: [ɔ-ʃis] (for Portuguese speakers: *ó-xis*).
+(if we can impose such a thing) is in Portuguese: [ɔ-ʃis] (Portuguese speakers will say *ó-xis*).

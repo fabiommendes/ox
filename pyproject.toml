@@ -25,7 +25,7 @@ classifiers = [
 ]
 requires = [
 	"lark-parser",
-	"sidekick~=0.5.1",
+	"sidekick~=0.5.2",
 ]
 
 [tool.flit.metadata.requires-extra]
