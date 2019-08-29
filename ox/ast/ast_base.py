@@ -19,7 +19,7 @@ class Tree(SExpr):
     _leaf_class = Token
 
 
-class AST(NodeOrLeaf, HasMetaMixin, metaclass=ASTMeta):
+class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
     """
     Base class for Node and Leaf syntax tree classes.
     """
@@ -38,6 +38,13 @@ class AST(NodeOrLeaf, HasMetaMixin, metaclass=ASTMeta):
         abstract = True
         root = True
         print_context_class = PrintContext
+
+    def __init__(self, *args, **kwargs):
+        self._init(*args, **kwargs)
+
+    def _init(self, *args, **kwargs):
+        msg = 'the init method should been created dynamically by metaclass constructor'
+        raise RuntimeError(msg)
 
     #
     # API methods
@@ -68,7 +75,7 @@ class AST(NodeOrLeaf, HasMetaMixin, metaclass=ASTMeta):
         return self._meta.print_context_class(**kwargs)
 
 
-class Node(NodeBase, AST):
+class Node(AST, NodeBase):
     """
     Base class for structured AST types.
 
@@ -84,13 +91,6 @@ class Node(NodeBase, AST):
     class Meta:
         abstract = True
 
-    def __init__(self, *args, **kwargs):
-        self._init(*args, **kwargs)
-
-    def _init(self, *args, **kwargs):
-        msg = 'the init method should been created dynamically by metaclass constructor'
-        raise RuntimeError(msg)
-
     def copy(self):
         meta = self._meta
         new = object.__new__(type(self))
@@ -103,9 +103,9 @@ class Node(NodeBase, AST):
         return new
 
 
-class Leaf(LeafBase, AST):
+class Leaf(AST, LeafBase):
     """
-    Base class for all Leaf nodes for
+    Base class for all Leaf nodes.
     """
 
     __slots__ = ()

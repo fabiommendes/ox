@@ -101,7 +101,7 @@ class WrapperMeta(type):
         Create a method that wraps a binary operator 'op' from a function 'fn'
         that receives two expression instances.
         """
-        from .base import AST
+        from .ast_base import AST
 
         def bin_op(wrapped, other):
             lhs: AST = unwrap(wrapped)
@@ -120,7 +120,7 @@ class WrapperMeta(type):
         It uses the same function as make_binary_operator. The wrapper flips the
         order of arguments.
         """
-        from .base import AST
+        from .ast_base import AST
 
         def bin_op(wrapped, other):
             lhs: AST = unwrap(wrapped)
@@ -136,7 +136,7 @@ class WrapperMeta(type):
         Create a method that wraps an unary operator 'op' from a function 'fn'
         that receives a single expression instance.
         """
-        from .base import AST
+        from .ast_base import AST
 
         def unary_op(wrapped):
             arg: AST = unwrap(wrapped)

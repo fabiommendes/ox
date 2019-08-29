@@ -1,5 +1,6 @@
 from typing import Union, Optional
 
+import ox.ast.ast_mixins
 from ox.ast import Tree
 from sidekick import curry
 from .operators import UnaryOp as UnaryOpEnum, BinaryOp as BinaryOpEnum
@@ -48,7 +49,7 @@ register_expr = curry(2, expr.register)
 # ==============================================================================
 
 
-class Atom(ExprLeaf, ast.AtomMixin):
+class Atom(ExprLeaf, ox.ast.ast_mixins.AtomMixin):
     """
     Atomic data such as numbers, strings, etc.
 
@@ -67,7 +68,7 @@ class Atom(ExprLeaf, ast.AtomMixin):
         yield "..." if self.value is ... else repr(self.value)
 
 
-class Name(ExprLeaf, ast.NameMixin):
+class Name(ExprLeaf, ox.ast.ast_mixins.NameMixin):
     """
     Represent a Python name
     """
@@ -103,7 +104,7 @@ class Or(ExprNode):
         sexpr_symbol = 'or'
 
 
-class UnaryOp(ExprNode, ast.UnaryOpMixin):
+class UnaryOp(ExprNode, ox.ast.ast_mixins.UnaryOpMixin):
     """
     Unary operators like +, -, ~ and not.
     """
@@ -118,7 +119,7 @@ class UnaryOp(ExprNode, ast.UnaryOpMixin):
         yield from self.expr.tokens(ctx)
 
 
-class BinOp(ExprNode, ast.BinaryOpMixin):
+class BinOp(ExprNode, ox.ast.ast_mixins.BinaryOpMixin):
     """
     Regular binary operators like for arithmetic and bitwise arithmetic
     operations. It excludes comparisons and bitwise operations since they are
@@ -146,7 +147,7 @@ class BinOp(ExprNode, ast.BinaryOpMixin):
         yield from wrap_tokens(self.rhs.tokens(ctx), wrap=wrap)
 
 
-class GetAttr(ExprNode, ast.GetAttrMixin):
+class GetAttr(ExprNode, ox.ast.ast_mixins.GetAttrMixin):
     """
     Get attribute expression.
     """

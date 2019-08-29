@@ -22,7 +22,8 @@ class ASTMeta(type):
         if 'Meta' in ns:
             ns = dict(ns)
             del ns['Meta']
-        ns.setdefault('__slots__', get_slots(ns))
+        if ns.get('__slots__', ...) is not None:
+            ns.setdefault('__slots__', get_slots(ns))
         return super().__new__(mcs, name, bases, ns)
 
     def __init__(cls, name, bases, ns):
@@ -47,12 +48,27 @@ class ASTMeta(type):
         """
         Create method for class.
         """
+
+        if cls._meta.abstract:
+            msg = f'cannot create instance of abstract class {cls.__name__}'
+
+            def _abstract_init(*args, **kwargs):
+                raise TypeError(msg)
+
+            return _abstract_init
+
         # TODO: init method should be created by dynamic code evaluation like
         # namedtuples. This is somewhat fragile, but it can significantly boost
         # performance of the constructor
-        return cls._generic_init_method()
+        if issubclass(cls, Leaf):
+            return cls._generic_leaf_init_method()
+        else:
+            return cls._generic_node_init_method()
 
-    def _generic_init_method(cls):
+    def _generic_leaf_init_method(cls):
+        return Leaf.__init__
+
+    def _generic_node_init_method(cls):
         meta = cls._meta
         posargs = tuple(meta.annotations)
         children = tuple(k for k, v in meta.annotations.items() if is_ast_type(v))
@@ -109,6 +125,7 @@ class HasMetaMixin:
     of the class.
     """
     _meta: 'Meta'
+    __slots__ = ()
 
     @classmethod
     def _meta_class(cls):

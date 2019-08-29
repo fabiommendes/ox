@@ -1,3 +1,5 @@
+import pytest
+
 from ox.ast import Expr, ExprNode, AtomMixin
 from sidekick.tree import Leaf, Node, SExprBase
 
@@ -66,6 +68,25 @@ class TestCalcLanguageAST:
 
         assert issubclass(Number, Leaf)
         assert not issubclass(Number, Node)
+
+    def test_classes_have_slots_set(self):
+        n = Number(42)
+        e = Add(n, Number(0))
+        m = Mul(e, Number(1))
+        for ex in [n, e, m]:
+            with pytest.raises(AttributeError):
+                ex.__dict__
+
+    def test_cannot_create_abstract_nodes(self):
+        print(Calc._init)
+        with pytest.raises(TypeError):
+            print(Calc())
+
+        with pytest.raises(TypeError):
+            print(Calc('arg'))
+
+        with pytest.raises(TypeError):
+            print(Calc('arg', ['children']))
 
     def test_class_metas(self):
         assert Add._meta.root is Calc

@@ -1,4 +1,4 @@
-from ...ast import Stmt as StmtBase
+from ox.ast import Stmt as StmtBase
 
 
 class Stmt(StmtBase):

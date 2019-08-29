@@ -67,7 +67,7 @@ class Token(Leaf):
             return repr(self._value)
         return self._repr()
 
-    def copy(self):
-        new = super().copy()
+    def copy(self) -> 'Token':
+        new: Token = super().copy()
         new._type = self._type
         return new
