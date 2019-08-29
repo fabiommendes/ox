@@ -79,8 +79,21 @@ class Expr(AST):
         """
         raise NotImplementedError
 
+    def free_vars(self, exclude=(), include=()):
+        """
+        Return all free variables from node.
+        """
+        vars = set(include)
+        if self.is_leaf:
+            return vars
+        for child in self.children:
+            xs = child.free_vars(exclude, include)
+            xs.difference_update(exclude)
+        return vars
 
-# ==============================================================================
+    # ==============================================================================
+
+
 # LEAF NODES
 # ==============================================================================
 
@@ -107,6 +120,11 @@ class NameMixin(ExprLeaf):
 
     def tokens(self, ctx):
         yield self.value
+
+    def free_vars(self, include=(), exclude=()):
+        xs = {self.value}
+        xs.difference_update(exclude)
+        return xs
 
 
 class AtomMixin(ExprLeaf):

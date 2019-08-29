@@ -1,0 +1,180 @@
+// Adapted from: https://docs.python.org/3/reference/grammar.html
+// Erez Shinan ported Python grammar to Lark
+// Fabio Mendes modified and adapted it to ox
+
+
+//// STATEMENTS ////////////////////////////////////////////////////////////////
+
+?start  : _NEWLINE* stmt (_NEWLINE | stmt)*
+
+?stmt   : simple
+        | "if" test ":" suite ("elif" test ":" suite)* ["else" ":" suite]
+        | "while" test ":" suite ["else" ":" suite]
+        | "try" ":" suite except+ ["else" ":" suite] ["finally" ":" suite]
+        | "try" ":" suite "finally" ":" suite
+        | decorators "class" NAME ["(" [args] ")"] ":" suite
+        | ASYNC? "for" exprs "in" tests ":" suite ["else" ":" suite]
+        | ASYNC? "with" with_item ("," with_item)*  ":" suite
+	    | decorators ASYNC? "def" NAME "(" parameters? ")" ["->" test] ":" suite
+
+?suite  : simple
+        | _NEWLINE _INDENT stmt+ _DEDENT
+
+?simple : small (";" small)* [";"] _NEWLINE
+
+?small  : atom ":" test                      -> type_decl
+		| test INPLACE expr                  -> inplace
+		| test [":" test] "=" expr           -> assign
+		| star_tests "=" expr ("=" expr)+    -> multi_assign
+		| star_tests 					     -> expr_stmt  // check there are no star exprs!
+        | "del" exprs                        -> del_stmt
+        | "pass"                             -> pass_stmt
+        | "break"                            -> break_stmt
+        | "continue"                         -> continue_stmt
+        | "return" [tests]                   -> return_stmt
+        | yield                              -> yield_stmt
+        | "raise" [test ["from" test]]       -> raise_stmt
+        | "import" qname_as ("," qname_as)*  -> import_names
+        | "from" mod_name "import" imports   -> import_from
+        | "global" NAME ("," NAME)*          -> global_stmt
+        | "nonlocal" NAME ("," NAME)*        -> nonlocal_stmt
+        | "assert" test ["," test]           -> assert_stmt
+
+?star_tests : (test|star) ("," (test|star))* [","]
+exprs       : STAR? chain ("," STAR? chain)* [","]
+star        : "*" chain
+
+
+except      : "except" [test ["as" NAME]] ":" suite
+with_item   : test ["as" chain]
+decorator   : "@" QNAME ["(" [args] ")"] _NEWLINE
+decorators  : decorator*
+
+parameters  : paramvalue ("," paramvalue)* ["," [starparams | kwparams]]
+            | starparams
+            | kwparams
+starparams  : "*" typedparam? ("," paramvalue)* ["," kwparams]
+kwparams    : "**" typedparam
+?paramvalue : typedparam ["=" test]
+?typedparam : NAME [":" test]
+
+argdefs : (vfpdef ["=" test] ("," vfpdef ["=" test])* ["," [ "*" [vfpdef] ("," vfpdef ["=" test])* ["," ["**" vfpdef [","]]] | "**" vfpdef [","]]]
+            | "*" [vfpdef] ("," vfpdef ["=" test])* ["," ["**" vfpdef [","]]]
+            | "**" vfpdef [","])
+vfpdef      : NAME
+
+// Import rules
+mod_name  : DOTS? QNAME
+          | DOTS
+?imports  : "*"                            -> star_import
+          | "(" qnames_as ")"
+          | qnames_as
+name_as   : NAME ["as" NAME]               -> name_pair
+qname_as  : QNAME ["as" NAME]              -> qname_pair
+qnames_as : name_as ("," name_as)* [","]   -> dict
+
+
+//// EXPRESSIONS ///////////////////////////////////////////////////////////////
+
+?expr    : yield
+         | tests
+
+?yield   : "yield" tests                 -> yield_expr
+	     | "yield" "from" test           -> yield_from
+
+?test    : noif ["if" noif "else" test]
+         | lambda
+
+tests    : test ("," test)* [","]
+
+lambda   : "lambda" [argdefs] ":" test   -> lambda_expr
+
+?noif    : noshort (LOGICAL_OP noshort)* -> opchain
+
+?noshort : "not" noshort                 -> negate
+         | chain (COMP_OP chain)*        -> opchain
+
+?chain   : factor (BINARY_OP factor)*    -> opchain
+
+?factor  : UNARY_OP factor
+         | power
+
+?power   : "await" atom ["**" factor]    -> await
+         | atom ["**" factor]
+
+?atom    : "(" [test | yield] ")"        -> elem_or_empty
+         | string+                       -> strings
+         | NAME                          -> name
+         | INT                           -> int
+         | HEX                           -> hex
+         | BIN                           -> bin
+         | OCT                           -> oct
+         | FLOAT                         -> float
+         | COMPLEX                       -> complex
+         | "..."                         -> ellipsis
+         | "None"                        -> none
+         | "True"                        -> true
+         | "False"                       -> false
+         | atom "(" [args] ")"           -> funccall  // must validate args
+         | atom "[" index  "]"           -> getitem
+         | atom "." NAME                 -> getattr
+         | "[" [items ","?] "]"          -> list
+         | "{" items ","? "}"            -> set
+         | "{" [pairs] "}"               -> dict
+         | "[" test comp+ "]"            -> list_comp
+         | "{" test comp+ "}"            -> set_comp
+	     | "(" test comp+ ")"            -> generator
+         | "{" test ":" test comp+ "}"   -> dict_comp
+         | "(" STAR? test "," [items ","?] ")"  -> tuple
+
+string   : STRING                        -> string
+         | LONG_STRING                   -> string
+
+?args    : arg ("," arg)*
+	     | test comp+                    -> generator
+arg      : test ["=" test]               -> arg
+	     | /\*\*?/ test                  -> splice
+
+index    : slice ("," slice)* [","]
+?slice   : [test] ":" [test] [":" [test]]
+         | test
+
+items    : STAR? test ("," STAR? test)*
+pairs    : pair ("," pair)* ","?
+pair     : test ":" pair
+         | "**" chain
+
+comp     : "for" exprs "in" noif ["if" rtest]
+acomp    : "async" "for" exprs "in" noif ["if" rtest]
+?rtest   : noif
+         | rlambda
+rlambda  : "lambda" [argdefs] ":" rtest  -> lambda_expr
+
+
+//// TERMINALS /////////////////////////////////////////////////////////////////
+
+NAME        : /(?!\d)\w+/
+QNAME       : NAME ("." NAME)*
+STRING      : /[ubf]?r?("(?!"").*?(?<!\\)(\\\\)*?"|'(?!'').*?(?<!\\)(\\\\)*?')/i
+LONG_STRING : /[ubf]?r?(""".*?(?<!\\)(\\\\)*?"""|'''.*?(?<!\\)(\\\\)*?''')/is
+INT         : /0|[1-9]\d*/i
+HEX.2       : /0x[\da-f]*/i
+OCT.2       : /0o[0-7]*/i
+BIN.2       : /0b[0-1]*/i
+FLOAT.2     : /((\d+\.\d*|\.\d+)(e[-+]?\d+)?|\d+(e[-+]?\d+))/i
+COMPLEX.2   : /\d+j/i | FLOAT "j"i
+BINARY_OP   : /[-+\/*@%|&^]|\/\/|>>|<<|in|not[ \t\f]+in/
+COMP_OP     : /<|>|<=|>=|==|!=|is|is[ \t\t]+not/
+UNARY_OP    : /[-+~]/
+LOGICAL_OP  : /or|and/
+ASYNC       : "async"
+INPLACE     : /[-+*@\/%&|^]|<<|>>|\*\*|\/\// "="
+DOTS        : /\.+/
+STAR        : "*"
+_COMMENT    : /#[^\n]*/
+_NEWLINE    : ( /\r?\n[\t ]*/ | _COMMENT )+
+
+%ignore /[\t \f]+/          // WS
+%ignore /\\[\t \f]*\r?\n/   // LINE_CONT
+%ignore _COMMENT
+%declare _INDENT _DEDENT
