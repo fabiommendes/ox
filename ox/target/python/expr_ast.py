@@ -74,7 +74,7 @@ class Name(ExprLeaf, ox.ast.ast_mixins.NameMixin):
     """
 
     class Meta:
-        types = str,
+        types = (str,)
 
 
 # ==============================================================================
@@ -86,33 +86,36 @@ class And(ExprNode):
     """
     Short-circuit "and" operator.
     """
+
     lhs: Expr
     rhs: Expr
 
     class Meta:
-        sexpr_symbol = 'and'
+        sexpr_symbol = "and"
 
 
 class Or(ExprNode):
     """
     Short-circuit "or" operator.
     """
+
     lhs: Expr
     rhs: Expr
 
     class Meta:
-        sexpr_symbol = 'or'
+        sexpr_symbol = "or"
 
 
 class UnaryOp(ExprNode, ox.ast.ast_mixins.UnaryOpMixin):
     """
     Unary operators like +, -, ~ and not.
     """
+
     op: UnaryOpEnum
     expr: Expr
 
     class Meta:
-        sexpr_skip = ('+', '-')
+        sexpr_skip = ("+", "-")
 
     def tokens(self, ctx):
         yield self.op.value
@@ -125,6 +128,7 @@ class BinOp(ExprNode, ox.ast.ast_mixins.BinaryOpMixin):
     operations. It excludes comparisons and bitwise operations since they are
     treated differently by Python grammar.
     """
+
     op: BinaryOpEnum
     lhs: Expr
     rhs: Expr
@@ -179,18 +183,18 @@ class Call(ExprNode):
         """
         cls, *args = args
         children = list(cls._yield_args(args, kwargs))
-        return Tree('args', children)
+        return Tree("args", children)
 
     @classmethod
     def _yield_args(cls, args, kwargs):
         for arg in args:
             if isinstance(arg, str):
-                if arg.startswith('**'):
+                if arg.startswith("**"):
                     yield Arg(Name(arg[2:]), name=None, stars=2)
-                elif arg.startswith('*'):
+                elif arg.startswith("*"):
                     yield Arg(Name(arg[1:]), name=None, stars=1)
                 else:
-                    raise ValueError(f'invalid argument specification {arg!r}')
+                    raise ValueError(f"invalid argument specification {arg!r}")
             else:
                 yield arg
         for name, value in kwargs.items():
@@ -229,7 +233,7 @@ class Call(ExprNode):
         else:
             yield from arg.tokens(ctx)
             for arg in children:
-                yield ', '
+                yield ", "
                 yield from arg.tokens(ctx)
         yield ")"
 
@@ -238,16 +242,17 @@ class Arg(ExprNode):
     """
     Represents an argument in a function call.
     """
+
     expr: Expr
-    name: Optional[str] = attr_property('name')
-    stars: int = attr_property('stars')
+    name: Optional[str] = attr_property("name")
+    stars: int = attr_property("stars")
 
     def tokens(self, ctx):
         if self.name:
             yield self.name
-            yield '='
+            yield "="
         elif self.stars:
-            yield '*' * self.stars
+            yield "*" * self.stars
         yield from self.expr.tokens(ctx)
 
 
@@ -271,5 +276,6 @@ class YieldFrom(Yield):
     """
     "yield from" Expression.
     """
+
     expr: Expr
     _command = "yield from"

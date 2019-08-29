@@ -32,9 +32,9 @@ def wrap_tokens(it, wrap=True):
             delimiters.
     """
     if wrap is True:
-        yield '('
+        yield "("
         yield from it
-        yield ')'
+        yield ")"
     elif wrap:
         left, right = wrap
         yield left
@@ -66,7 +66,7 @@ def get_renderer(template):
     """
 
     def renderer_fallback(ctx):
-        data = {k: ''.join(v) for k, v in ctx.items()}
+        data = {k: "".join(v) for k, v in ctx.items()}
         return template.format(**data)
 
     return renderer_fallback
@@ -92,7 +92,7 @@ def attr_property(name, default=None, readonly=False):
 
 
 @lru_cache(250)
-def unary_operator_sexpr(cls: Type['UnaryOpMixin'], op):
+def unary_operator_sexpr(cls: Type["UnaryOpMixin"], op):
     """
     Create an S-expr constructor for the given unary operator.
 
@@ -103,7 +103,7 @@ def unary_operator_sexpr(cls: Type['UnaryOpMixin'], op):
             String description or enum item associated with the bound operator.
     """
     if isinstance(op, str):
-        return unary_operator_sexpr(cls, cls._meta.annotations['op'].from_name(op))
+        return unary_operator_sexpr(cls, cls._meta.annotations["op"].from_name(op))
     to_expr = cls._meta.coerce
 
     def constructor(expr, **kwargs):
@@ -114,7 +114,7 @@ def unary_operator_sexpr(cls: Type['UnaryOpMixin'], op):
 
 
 @lru_cache(250)
-def binary_operator_sexpr(cls: Type['BinaryOpMixin'], op):
+def binary_operator_sexpr(cls: Type["BinaryOpMixin"], op):
     """
     Create an S-expr constructor for the given binary operator.
 
@@ -125,10 +125,11 @@ def binary_operator_sexpr(cls: Type['BinaryOpMixin'], op):
             String description or enum item associated with the bound operator.
     """
     if isinstance(op, str):
-        return binary_operator_sexpr(cls, cls._meta.annotations['op'].from_name(op))
+        return binary_operator_sexpr(cls, cls._meta.annotations["op"].from_name(op))
     to_expr = cls._meta.coerce
 
     if op.left_associative:
+
         def constructor(*args, **kwargs):
             lhs, rhs, *exprs = [to_expr(e) for e in args]
             new = cls(op, lhs, rhs, **kwargs)
@@ -138,7 +139,9 @@ def binary_operator_sexpr(cls: Type['BinaryOpMixin'], op):
             while exprs:
                 new = cls(op, new, exprs.pop(), **kwargs)
             return new
+
     else:
+
         def constructor(*args, **kwargs):
             *exprs, lhs, rhs = [to_expr(e) for e in args]
             new = cls(lhs, rhs, **kwargs)
@@ -151,8 +154,9 @@ def binary_operator_sexpr(cls: Type['BinaryOpMixin'], op):
 
 
 @lru_cache(250)
-def flexible_operator_sexpr(binary_cls: Type['BinaryOpMixin'],
-                            unary_cls: Type['UnaryOpMixin'], op):
+def flexible_operator_sexpr(
+    binary_cls: Type["BinaryOpMixin"], unary_cls: Type["UnaryOpMixin"], op
+):
     """
     Create an S-expr constructor for the given pair of operators. This function
     is needed when the same operator is used both in unary and binary forms

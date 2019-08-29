@@ -18,7 +18,7 @@ class Add(ExprNode, Calc):
     rhs: Calc
 
     class Meta:
-        sexpr_symbol = '+'
+        sexpr_symbol = "+"
 
 
 class Sub(ExprNode, Calc):
@@ -26,7 +26,7 @@ class Sub(ExprNode, Calc):
     rhs: Calc
 
     class Meta:
-        sexpr_symbol = '-'
+        sexpr_symbol = "-"
 
 
 class Div(ExprNode, Calc):
@@ -34,7 +34,7 @@ class Div(ExprNode, Calc):
     rhs: Calc
 
     class Meta:
-        sexpr_symbol = '/'
+        sexpr_symbol = "/"
 
 
 class Mul(ExprNode, Calc):
@@ -42,7 +42,7 @@ class Mul(ExprNode, Calc):
     rhs: Calc
 
     class Meta:
-        sexpr_symbol = '*'
+        sexpr_symbol = "*"
 
 
 class Number(AtomMixin, Calc):
@@ -56,6 +56,7 @@ expr = Calc._meta.coerce
 # ==============================================================================
 # Tests
 # ==============================================================================
+
 
 class TestCalcLanguageAST:
     def test_class_hierarchy(self):
@@ -83,10 +84,10 @@ class TestCalcLanguageAST:
             print(Calc())
 
         with pytest.raises(TypeError):
-            print(Calc('arg'))
+            print(Calc("arg"))
 
         with pytest.raises(TypeError):
-            print(Calc('arg', ['children']))
+            print(Calc("arg", ["children"]))
 
     def test_class_metas(self):
         assert Add._meta.root is Calc

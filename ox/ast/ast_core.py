@@ -117,8 +117,8 @@ class ExprNode(Node, SExprBase, Expr):
         args = []
         for attr in self._meta.annotations:
             args.append(repr(getattr(self, attr)))
-        args = ', '.join(args)
-        return f'{self.__class__.__name__}({args})'
+        args = ", ".join(args)
+        return f"{self.__class__.__name__}({args})"
 
 
 class Stmt(Node):

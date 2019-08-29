@@ -1,10 +1,14 @@
 from typing import Type
 
 from .ast_core import ExprLeaf, ExprNode, Expr
-from .utils import attr_property, wrap_tokens, from_template, \
-    unary_operator_sexpr, \
-    binary_operator_sexpr, \
-    flexible_operator_sexpr
+from .utils import (
+    attr_property,
+    wrap_tokens,
+    from_template,
+    unary_operator_sexpr,
+    binary_operator_sexpr,
+    flexible_operator_sexpr,
+)
 from ..operators import Op, BinaryOp
 
 
@@ -58,6 +62,7 @@ class SingleCommandMixin(ExprNode):
     """
     A simple command that modifies a single expression (ex.: yield <expr>)
     """
+
     expr: Expr
 
     class Meta:
@@ -69,12 +74,13 @@ class GetAttrMixin(ExprNode):
     """
     Attribute access (<expr>.<name>).
     """
+
     expr: Expr
-    attr: str = attr_property('attr')
+    attr: str = attr_property("attr")
 
     class Meta:
         abstract = True
-        command = '{expr}.{attr}'
+        command = "{expr}.{attr}"
 
     @classmethod
     def _meta_getattr(cls, expr, attr):
@@ -93,8 +99,8 @@ class GetAttrMixin(ExprNode):
 
     def tokens(self, ctx):
         ctx = {
-            'expr': wrap_tokens(self.expr.tokens(ctx), self.wrap_expr_with()),
-            'attr': [self.attr],
+            "expr": wrap_tokens(self.expr.tokens(ctx), self.wrap_expr_with()),
+            "attr": [self.attr],
         }
         yield from from_template(self._meta.command, ctx)
 
@@ -103,6 +109,7 @@ class UnaryOpMixin(ExprNode):
     """
     Unary operator (ex.: +<expr>)
     """
+
     op: Op
     expr: Expr
 
@@ -125,10 +132,10 @@ class UnaryOpMixin(ExprNode):
         binary_ops = set()
 
         if binary_class:
-            ops = binary_class._meta.annotations['op']
+            ops = binary_class._meta.annotations["op"]
             binary_ops.update(op.value for op in ops)
 
-        for op in cls._meta.annotations['op']:
+        for op in cls._meta.annotations["op"]:
             symbol_map[op] = unary = unary_operator_sexpr(cls, op)
             if op.value in skip:
                 pass
@@ -141,7 +148,7 @@ class UnaryOpMixin(ExprNode):
 
     def __init__(self, op, expr, **kwargs):
         if isinstance(op, str):
-            op = self._meta.annotations['op'].from_name(op)
+            op = self._meta.annotations["op"].from_name(op)
         super().__init__(op, expr, **kwargs)
 
 
@@ -149,6 +156,7 @@ class BinaryMixin(ExprNode):
     """
     A command that involves a pair of expressions (ex.: <expr> and <expr>).
     """
+
     lhs: Expr
     rhs: Expr
 
@@ -161,6 +169,7 @@ class BinaryOpMixin(ExprNode):
     """
     A binary operator (ex.: <expr> + <expr>).
     """
+
     op: BinaryOp
     lhs: Expr
     rhs: Expr
@@ -186,10 +195,10 @@ class BinaryOpMixin(ExprNode):
         unary_ops = set()
 
         if unary_class:
-            ops = unary_class._meta.annotations['op']
+            ops = unary_class._meta.annotations["op"]
             unary_ops.update(op.value for op in ops)
 
-        for op in cls._meta.annotations['op']:
+        for op in cls._meta.annotations["op"]:
             symbol_map[op] = binary = binary_operator_sexpr(cls, op)
             if op.value in skip:
                 pass
@@ -203,9 +212,9 @@ class BinaryOpMixin(ExprNode):
     @classmethod
     def _meta_finalize(cls):
         super()._meta_finalize()
-        cls.operators = cls._meta.annotations['op']
+        cls.operators = cls._meta.annotations["op"]
 
     def __init__(self, op, lhs, rhs, **kwargs):
         if isinstance(op, str):
-            op = self._meta.annotations['op'].from_name(op)
+            op = self._meta.annotations["op"].from_name(op)
         super().__init__(op, lhs, rhs, **kwargs)

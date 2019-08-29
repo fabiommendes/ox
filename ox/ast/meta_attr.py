@@ -9,7 +9,7 @@ from .wrapper import Wrapper, unwrap
 from ..logging import log
 
 ID = lambda x: x
-SExprKey = Union[str, 'HasMetaMixin', Enum]
+SExprKey = Union[str, "HasMetaMixin", Enum]
 
 
 class Meta:
@@ -17,7 +17,7 @@ class Meta:
     Meta base class store information about the node class.
     """
 
-    parent: Optional['Meta'] = None
+    parent: Optional["Meta"] = None
     root: HasMetaMixin
     type: Type[HasMetaMixin]
     sexpr_symbol_map: Dict[SExprKey, Callable[..., HasMetaMixin]]
@@ -27,11 +27,18 @@ class Meta:
     @property
     def fullname(self):
         cls = self.type
-        return f'{cls.__module__}.{cls.__name__}'
+        return f"{cls.__module__}.{cls.__name__}"
 
-    def __init__(self, cls, extra=None, *, abstract=False, root=None,
-                 sexpr_symbol=None,
-                 sexpr_symbol_map=None):
+    def __init__(
+        self,
+        cls,
+        extra=None,
+        *,
+        abstract=False,
+        root=None,
+        sexpr_symbol=None,
+        sexpr_symbol_map=None,
+    ):
 
         cls._meta = self
         if extra:
@@ -59,7 +66,7 @@ class Meta:
             self.root = root
             self.root_meta = root._meta
         else:
-            raise ValueError(f'invalid root node: {root}')
+            raise ValueError(f"invalid root node: {root}")
 
         # Collect information about class hierarchy
         self.is_leaf = issubclass(cls, Leaf)
@@ -104,19 +111,21 @@ class Meta:
 
         # Wrapper expressions
         self.wrapper_roles = {} if self.is_root else self.root_meta.wrapper_roles
-        for role in ['getattr', 'getitem', 'fcall']:
-            if hasattr(cls, '_meta_' + role):
-                self.wrapper_roles[role] = getattr(cls, '_meta_' + role)
+        for role in ["getattr", "getitem", "fcall"]:
+            if hasattr(cls, "_meta_" + role):
+                self.wrapper_roles[role] = getattr(cls, "_meta_" + role)
 
     def __repr__(self):
-        return f'Meta({self.type.__name__})'
+        return f"Meta({self.type.__name__})"
 
     def __getattr__(self, item):
-        if not item.startswith('_'):
+        if not item.startswith("_"):
             for cls in self.type.mro()[1:]:
-                if (issubclass(cls, HasMetaMixin)
-                        and cls is not HasMetaMixin
-                        and item in cls._meta.__dict__):
+                if (
+                    issubclass(cls, HasMetaMixin)
+                    and cls is not HasMetaMixin
+                    and item in cls._meta.__dict__
+                ):
                     value = getattr(cls._meta, item)
                     setattr(self, item, value)
                     return value
@@ -133,7 +142,7 @@ class Meta:
             if k not in self.sexpr_symbol_map:
                 self.sexpr_symbol_map[k] = v
             else:
-                log.debug(f'repeated S-Expr constructor: {k}')
+                log.debug(f"repeated S-Expr constructor: {k}")
 
         # Create coerce function for root nodes
         if self.is_root:
@@ -152,9 +161,9 @@ class Meta:
         @singledispatch
         def coerce(x):
             cls = type(x).__name__
-            raise TypeError(f'{cls} cannot be converted to {name}')
+            raise TypeError(f"{cls} cannot be converted to {name}")
 
-        register = (lambda cls, fn: coerce.register(cls)(fn))
+        register = lambda cls, fn: coerce.register(cls)(fn)
         register(self.type, ID)
         register(Wrapper, lambda x: coerce(unwrap(x)))
         return coerce

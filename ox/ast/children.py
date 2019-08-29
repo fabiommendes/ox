@@ -1,13 +1,14 @@
 from typing import MutableSequence, Iterable, TypeVar
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class ChildrenBase(MutableSequence):
     """
     Expose attributes of an object as a sequence.
     """
-    __slots__ = ('_ast',)
+
+    __slots__ = ("_ast",)
     _n_children = NotImplemented
     _attrs = NotImplemented
 
@@ -70,4 +71,4 @@ def make_children_class(meta, base=ChildrenBase):
 # Utilities
 #
 def size_error():
-    return ValueError('cannot change the size of children list!')
+    return ValueError("cannot change the size of children list!")

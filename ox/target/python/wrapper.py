@@ -4,7 +4,7 @@ from .stmt_ast import Stmt
 from .utils import is_python_name
 from ...ast.wrapper import Wrapper, unwrap, wrap as _wrap
 
-wrap = (lambda x: _wrap(x, Py))
+wrap = lambda x: _wrap(x, Py)
 
 
 class Py(Wrapper, roots=(Expr, Stmt)):
@@ -15,8 +15,8 @@ class Py(Wrapper, roots=(Expr, Stmt)):
     def __repr__(self):
         ref = unwrap(self)
         if isinstance(ref, Atom):
-            return f'py({ref.value!r})'
-        return f'py[{ref.source()!r}]'
+            return f"py({ref.value!r})"
+        return f"py[{ref.source()!r}]"
 
 
 class PyMagic:
@@ -39,7 +39,7 @@ class PyMagic:
             else:
                 return self(item, parse=True)
         cls = type(item).__name__
-        raise TypeError(f'invalid index type: {cls}')
+        raise TypeError(f"invalid index type: {cls}")
 
 
 def S(head, *args, parse=False, **kwargs):
@@ -62,9 +62,7 @@ def S(head, *args, parse=False, **kwargs):
     except KeyError as exc:
         if callable(head):
             return head(*args, **kwargs)
-        raise ValueError(f'invalid S-Expr head: {head!r}') from exc
-
-
+        raise ValueError(f"invalid S-Expr head: {head!r}") from exc
 
 
 meta = Expr._meta

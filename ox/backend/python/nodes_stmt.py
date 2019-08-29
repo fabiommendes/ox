@@ -1,13 +1,6 @@
 from functools import singledispatch
 from inspect import Signature
-from typing import (
-    List as ListOf,
-    Dict as DictOf,
-    Optional,
-    Union,
-    Any,
-    Tuple,
-)
+from typing import List as ListOf, Dict as DictOf, Optional, Union, Any, Tuple
 
 from sidekick import fn
 

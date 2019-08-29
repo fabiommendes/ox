@@ -6,7 +6,7 @@ values = lambda xs: list(map(lambda x: x.value, xs))
 lexemes = lambda xs: list(map(lambda x: str(x), xs))
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def calc():
     return lexer(
         INT={r"\d+": int},
@@ -15,7 +15,7 @@ def calc():
         MUL=r"[*\/]",
         CTRL=r"[()]",
         WS=r"\s+",
-        ignore='WS',
+        ignore="WS",
     )
 
 
@@ -27,5 +27,5 @@ class TestLexer:
 
     def test_calc_lexer_emits_error_on_bad_source(self, calc):
         with pytest.raises(UnexpectedCharacters):
-            for tk in calc('20 ^ 2'):
+            for tk in calc("20 ^ 2"):
                 print(tk)

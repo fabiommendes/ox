@@ -6,37 +6,37 @@ from ox.hypothesis import py_value
 from ox.target.python import Atom, BinOp, Name, GetAttr, Call
 from ox.target.python import expr, py, unwrap
 
-src = (lambda x: unwrap(x).source())
+src = lambda x: unwrap(x).source()
 
 
 class TestAstNodeConstruction:
     def test_atomic_node_equality(self):
         assert expr(1) == Atom(1)
-        assert Name('x') == Name('x')
-        assert Name('x') != Name('y')
-        assert Name('x').parent is None
+        assert Name("x") == Name("x")
+        assert Name("x") != Name("y")
+        assert Name("x").parent is None
 
     def test_atomic_node_repr(self):
         assert repr(Atom(1)) == "Atom(1)"
-        assert repr(Name('x')) == "Name('x')"
+        assert repr(Name("x")) == "Name('x')"
 
     def test_atomic_node_source(self):
         assert Atom(1).source() == "1"
-        assert Name('x').source() == "x"
+        assert Name("x").source() == "x"
 
     def test_simple_expr_create(self):
         expr = BinOp("+", Name("x"), Name("y"))
         assert expr.tag == expr.op == expr.operators.ADD
-        assert expr.lhs == Name('x')
-        assert expr.rhs == Name('y')
+        assert expr.lhs == Name("x")
+        assert expr.rhs == Name("y")
         assert repr(expr) == "BinOp(Op.ADD, Name('x'), Name('y'))"
-        assert expr.source() == 'x + y'
+        assert expr.source() == "x + y"
 
     def test_simple_expr_children(self):
         expr = BinOp("+", Name("x"), Name("y"))
         assert len(expr._children) == 2
         assert expr._children is expr.children
-        assert expr.children == [Name('x'), Name('y')]
+        assert expr.children == [Name("x"), Name("y")]
 
     def test_simple_expr_compare(self):
         expr1 = BinOp("+", Name("x"), Name("y"))
@@ -44,15 +44,15 @@ class TestAstNodeConstruction:
         assert expr1 == expr2
 
     def test_getattr_constructor(self):
-        e = GetAttr(Name('x'), 'foo')
-        assert e.expr == Name('x')
-        assert e.attrs == {'attr': 'foo'}
-        assert e.attr == 'foo'
-        assert e.source() == 'x.foo'
+        e = GetAttr(Name("x"), "foo")
+        assert e.expr == Name("x")
+        assert e.attrs == {"attr": "foo"}
+        assert e.attr == "foo"
+        assert e.source() == "x.foo"
 
     def test_fcall_constructor(self):
-        e = Call.from_args(Name('foo'), Atom('bar'), kw=Atom(42))
-        assert e.expr == Name('foo')
+        e = Call.from_args(Name("foo"), Atom("bar"), kw=Atom(42))
+        assert e.expr == Name("foo")
         assert e.source() == "foo('bar', kw=42)"
 
     def _test_container_nodes(self):
@@ -78,10 +78,10 @@ class TestWrapperObject:
         x = py.x
         y = py.y
         fn = py.fn
-        src = (lambda x: unwrap(x).source())
-        assert src(x.foo) == 'x.foo'
-        assert src(fn(x)) == 'fn(x)'
-        assert src((x + y).method()) == '(x + y).method()'
+        src = lambda x: unwrap(x).source()
+        assert src(x.foo) == "x.foo"
+        assert src(fn(x)) == "fn(x)"
+        assert src((x + y).method()) == "(x + y).method()"
 
 
 class TestUtilities:
@@ -92,7 +92,7 @@ class TestUtilities:
         print(e.__dict__)
         print(e._attrs)
         print(e.children)
-        assert unwrap(py.x + py.y + 2).free_vars() == {'x', 'y'}
+        assert unwrap(py.x + py.y + 2).free_vars() == {"x", "y"}
 
 
 @pytest.mark.hypothesis
@@ -100,6 +100,7 @@ class _TestHypothesis:
     @given(py_value())
     def test_representation_of_atoms(self, value):
         assert repr(value) == expr(value).source()
+
 
 # class TestExprHelpers:
 #     def test_var_helper(self):

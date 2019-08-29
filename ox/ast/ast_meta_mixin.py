@@ -9,7 +9,8 @@ class HasMetaMixin:
     Those methods are executed during the construction of the _meta attribute
     of the class.
     """
-    _meta: 'Meta'
+
+    _meta: "Meta"
     __slots__ = ()
 
     @classmethod
@@ -18,6 +19,7 @@ class HasMetaMixin:
         Allow to override the class used to construct the _meta attribute.
         """
         from .meta_attr import Meta
+
         return Meta
 
     @classmethod
@@ -38,10 +40,10 @@ class HasMetaMixin:
 
         extra = {}
         for attr in dir(meta_obj):
-            if not attr.startswith('_') and attr not in kwargs:
+            if not attr.startswith("_") and attr not in kwargs:
                 extra[attr] = getattr(meta_obj, attr)
         if extra:
-            kwargs['extra'] = extra
+            kwargs["extra"] = extra
         return kwargs
 
     @classmethod

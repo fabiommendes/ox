@@ -47,7 +47,7 @@ def lexer(grammar=None, *args, ignore=None, **kwargs) -> Lexer:
             "cannot specify rules by keyword and grammar string simultaneously"
         )
     if isinstance(ignore, str):
-        ignore = ignore.split(',')
+        ignore = ignore.split(",")
 
     # Create a Lark grammar for the given lexing rules
     if grammar:

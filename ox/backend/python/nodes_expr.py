@@ -125,13 +125,9 @@ class Ternary(Expr):
 
     def tokens_for_context(self, ctx):
         cond, then, other = self.cond, self.then, self.other
-        yield from wrap_tokens(
-            then.tokens(ctx), wrap=isinstance(then, Ternary)
-        )
+        yield from wrap_tokens(then.tokens(ctx), wrap=isinstance(then, Ternary))
         yield " if "
-        yield from wrap_tokens(
-            cond.tokens(ctx), wrap=isinstance(cond, Ternary)
-        )
+        yield from wrap_tokens(cond.tokens(ctx), wrap=isinstance(cond, Ternary))
         yield " else "
         yield from other.tokens(ctx)
 

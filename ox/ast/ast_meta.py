@@ -14,11 +14,11 @@ class ASTMeta(type):
     """
 
     def __new__(mcs, name, bases, ns):
-        if 'Meta' in ns:
+        if "Meta" in ns:
             ns = dict(ns)
-            del ns['Meta']
-        if ns.get('__slots__', ...) is not None:
-            ns.setdefault('__slots__', get_slots(ns))
+            del ns["Meta"]
+        if ns.get("__slots__", ...) is not None:
+            ns.setdefault("__slots__", get_slots(ns))
         return super().__new__(mcs, name, bases, ns)
 
     def __init__(cls, name, bases, ns):
@@ -26,7 +26,7 @@ class ASTMeta(type):
 
         # Create _meta object
         cls: Type[HasMetaMixin]
-        meta_ns = ns.get('Meta', SimpleNamespace)()
+        meta_ns = ns.get("Meta", SimpleNamespace)()
         meta_class = cls._meta_class()
         meta_args = cls._meta_args(meta_ns)
         cls._meta = meta_class(cls, **meta_args)
@@ -36,8 +36,10 @@ class ASTMeta(type):
         if issubclass(cls, Node):
             cls._children_class = make_children_class(cls._meta)
         cls._meta_finalize()
-        log.info(f'Class created: {cls._meta.fullname}, root: '
-                 f'{cls._meta.root_meta.fullname}')
+        log.info(
+            f"Class created: {cls._meta.fullname}, root: "
+            f"{cls._meta.root_meta.fullname}"
+        )
 
     def _make_init_method(cls):
         """
@@ -45,7 +47,7 @@ class ASTMeta(type):
         """
 
         if cls._meta.abstract:
-            msg = f'cannot create instance of abstract class {cls.__name__}'
+            msg = f"cannot create instance of abstract class {cls.__name__}"
 
             def _abstract_init(*args, **kwargs):
                 raise TypeError(msg)
@@ -76,19 +78,19 @@ class ASTMeta(type):
 
             if len(args) > len(posargs):
                 n = len(posargs)
-                raise TypeError(f'expected at most {n} positional arguments.')
+                raise TypeError(f"expected at most {n} positional arguments.")
 
             n_children = 0
             for k, v in zip(posargs, args):
                 if k in kwargs:
-                    raise TypeError(f'repeated keyword argument: {k!r}')
+                    raise TypeError(f"repeated keyword argument: {k!r}")
                 if k in children_set:
                     if v.parent is None:
                         v._parent = self
                         setattr(self, k, v)
                         n_children += 1
                     else:
-                        raise ValueError(f'node already has parent: {v.parent!r}')
+                        raise ValueError(f"node already has parent: {v.parent!r}")
                 elif k == tag_attr:
                     setattr(self, k, v)
                 else:
@@ -104,7 +106,7 @@ class ASTMeta(type):
                     try:
                         getattr(self, k)
                     except AttributeError:
-                        raise TypeError(f'{k!r} not given')
+                        raise TypeError(f"{k!r} not given")
 
             self._attrs = kwargs
 
@@ -112,5 +114,5 @@ class ASTMeta(type):
 
 
 def get_slots(ns):
-    annotations = ns.get('__annotations__', {})
+    annotations = ns.get("__annotations__", {})
     return tuple(k for k, v in annotations.items() if is_ast_type(v))

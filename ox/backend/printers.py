@@ -1,7 +1,6 @@
 import operator
 
 
-
 def infix_operator_node(op, paren=True):
     """
     Returns an emitter for the given infix operator.

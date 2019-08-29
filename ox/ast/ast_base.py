@@ -16,6 +16,7 @@ class Tree(SExpr):
     Tree nodes can be used as generic SExpr types or as parts of specialized
     ASTs that do not need to specify any custom behavior.
     """
+
     __slots__ = ()
     _meta: Meta
     _leaf_class = Token
@@ -45,7 +46,7 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
         self._init(*args, **kwargs)
 
     def _init(self, *args, **kwargs):
-        msg = 'the init method should been created dynamically by metaclass constructor'
+        msg = "the init method should been created dynamically by metaclass constructor"
         raise RuntimeError(msg)
 
     #
@@ -84,6 +85,7 @@ class Node(AST, NodeBase):
     Subclasses of this class have always a fixed number of children that are
     also exposed as attributes.
     """
+
     __slots__ = ()
     __annotations__ = {}
     _leaf_class = Token

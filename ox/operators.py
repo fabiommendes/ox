@@ -6,6 +6,7 @@ class Op(enum.Enum):
     """
     Abstract enum that serves to base class for all enums that list operators.
     """
+
     _str_to_op: dict
     __precedence_mapping: dict
     _right_associative_set: set
@@ -19,7 +20,7 @@ class Op(enum.Enum):
             return symb
 
         try:
-            cache = cls.__dict__['_str_to_op']
+            cache = cls.__dict__["_str_to_op"]
         except KeyError:
             cls._str_to_op = cache = {}
 

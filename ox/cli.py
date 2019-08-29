@@ -39,4 +39,4 @@ def lexer_interact(lexer):
 
 
 def main():
-    raise SystemExit('Cli is not yet implemented')
+    raise SystemExit("Cli is not yet implemented")

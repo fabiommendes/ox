@@ -3,49 +3,49 @@ from types import MappingProxyType
 from sidekick.tree import NodeOrLeaf
 from .utils import NotImplementedDescriptor
 
-BINARY_OPERATORS = MappingProxyType({
-    "+": '__add__',
-    "//": '__floordiv__',
-    "<<": '__lshift__',
-    "@": '__matmul__',
-    "%": '__mod__',
-    "*": '__mul__',
-    "**": '__pow__',
-    ">>": '__rshift__',
-    "-": '__sub__',
-    "/": '__truediv__',
-    "&": '__and___',
-    "^ ": '__xor__',
-    "|": '__or___',
-    "==": '__eq__',
-    ">=": '__ge__',
-    ">": '__gt__',
-    "<=": '__le__',
-    "<": '__lt__',
-    "!=": '__ne__',
-})
+BINARY_OPERATORS = MappingProxyType(
+    {
+        "+": "__add__",
+        "//": "__floordiv__",
+        "<<": "__lshift__",
+        "@": "__matmul__",
+        "%": "__mod__",
+        "*": "__mul__",
+        "**": "__pow__",
+        ">>": "__rshift__",
+        "-": "__sub__",
+        "/": "__truediv__",
+        "&": "__and___",
+        "^ ": "__xor__",
+        "|": "__or___",
+        "==": "__eq__",
+        ">=": "__ge__",
+        ">": "__gt__",
+        "<=": "__le__",
+        "<": "__lt__",
+        "!=": "__ne__",
+    }
+)
 
-RBINARY_OPERATORS = MappingProxyType({
-    "+": '__radd__',
-    "//": '__rfloordiv__',
-    "<<": '__rlshift__',
-    "@": '__rmatmul__',
-    "%": '__rmod__',
-    "*": '__rmul__',
-    "**": '__rpow__',
-    ">>": '__rrshift__',
-    "-": '__rsub__',
-    "/": '__rtruediv__',
-    "&": '__rand___',
-    "^ ": '__rxor__',
-    "|": '__ror___',
-})
+RBINARY_OPERATORS = MappingProxyType(
+    {
+        "+": "__radd__",
+        "//": "__rfloordiv__",
+        "<<": "__rlshift__",
+        "@": "__rmatmul__",
+        "%": "__rmod__",
+        "*": "__rmul__",
+        "**": "__rpow__",
+        ">>": "__rrshift__",
+        "-": "__rsub__",
+        "/": "__rtruediv__",
+        "&": "__rand___",
+        "^ ": "__rxor__",
+        "|": "__ror___",
+    }
+)
 
-UNARY_OPERATORS = MappingProxyType({
-    "~": '__invert__',
-    "-": '__neg__',
-    "+": '__pos__',
-})
+UNARY_OPERATORS = MappingProxyType({"~": "__invert__", "-": "__neg__", "+": "__pos__"})
 
 
 class WrapperMeta(type):
@@ -56,10 +56,16 @@ class WrapperMeta(type):
     dunder methods of the class.
     """
 
-    def __init__(cls, name, bases, ns, roots=(),
-                 binary_operators=BINARY_OPERATORS,
-                 rbinary_operators=RBINARY_OPERATORS,
-                 unary_operators=UNARY_OPERATORS):
+    def __init__(
+        cls,
+        name,
+        bases,
+        ns,
+        roots=(),
+        binary_operators=BINARY_OPERATORS,
+        rbinary_operators=RBINARY_OPERATORS,
+        unary_operators=UNARY_OPERATORS,
+    ):
         super().__init__(name, bases, ns)
 
         cls.__sexpr_heads = sexpr_heads = {}
@@ -148,7 +154,7 @@ class WrapperMeta(type):
         """
         Creates the __call__ method for wrapped instances.
         """
-        fn = cls.__get_role('fcall')
+        fn = cls.__get_role("fcall")
         if fn is None:
             return None
 
@@ -163,7 +169,7 @@ class WrapperMeta(type):
         """
         Creates the __getitem__ method for wrapped instances.
         """
-        fn = cls.__get_role('getitem')
+        fn = cls.__get_role("getitem")
         if fn is None:
             return None
 
@@ -176,7 +182,7 @@ class WrapperMeta(type):
         """
         Creates the __getattr__ method for wrapped instances.
         """
-        fn = cls.__get_role('getattr')
+        fn = cls.__get_role("getattr")
         if fn is None:
             return None
 
@@ -198,7 +204,8 @@ class Wrapper(metaclass=WrapperMeta):
     """
     Base Wrapper object class.
     """
-    __slots__ = ('__ref',)
+
+    __slots__ = ("__ref",)
 
     def __init__(self, obj):
         self.__ref = obj
