@@ -41,6 +41,7 @@ doc = [
 dev = [
     "flake8",
     "black",
+    "pre-commit",
 ]
 
 [tool.flit.metadata.urls]
