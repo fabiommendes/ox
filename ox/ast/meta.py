@@ -1,180 +1,15 @@
 import inspect
 from enum import Enum
 from functools import singledispatch
-from types import SimpleNamespace
 from typing import Optional, Type, Dict, Callable, Union
 
 from sidekick.tree import Leaf, Node, NodeOrLeaf
-from .children import make_children_class
+from .ast_meta_mixin import HasMetaMixin, META_ARGUMENTS
 from .wrapper import Wrapper, unwrap
 from ..logging import log
 
 ID = lambda x: x
 SExprKey = Union[str, 'HasMetaMixin', Enum]
-
-
-class ASTMeta(type):
-    """
-    Metaclass for all AST types.
-    """
-
-    def __new__(mcs, name, bases, ns):
-        if 'Meta' in ns:
-            ns = dict(ns)
-            del ns['Meta']
-        if ns.get('__slots__', ...) is not None:
-            ns.setdefault('__slots__', get_slots(ns))
-        return super().__new__(mcs, name, bases, ns)
-
-    def __init__(cls, name, bases, ns):
-        super().__init__(name, bases, ns)
-
-        # Create _meta object
-        cls: Type[HasMetaMixin]
-        meta_ns = ns.get('Meta', SimpleNamespace)()
-        meta_class = cls._meta_class()
-        meta_args = cls._meta_args(meta_ns)
-        cls._meta = meta_class(cls, **meta_args)
-        cls._meta.init()
-        cls._init = cls._make_init_method()
-        cls.tag = cls._meta.tag_descriptor()
-        if issubclass(cls, Node):
-            cls._children_class = make_children_class(cls._meta)
-        cls._meta_finalize()
-        log.info(f'Class created: {cls._meta.fullname}, root: '
-                 f'{cls._meta.root_meta.fullname}')
-
-    def _make_init_method(cls):
-        """
-        Create method for class.
-        """
-
-        if cls._meta.abstract:
-            msg = f'cannot create instance of abstract class {cls.__name__}'
-
-            def _abstract_init(*args, **kwargs):
-                raise TypeError(msg)
-
-            return _abstract_init
-
-        # TODO: init method should be created by dynamic code evaluation like
-        # namedtuples. This is somewhat fragile, but it can significantly boost
-        # performance of the constructor
-        if issubclass(cls, Leaf):
-            return cls._generic_leaf_init_method()
-        else:
-            return cls._generic_node_init_method()
-
-    def _generic_leaf_init_method(cls):
-        return Leaf.__init__
-
-    def _generic_node_init_method(cls):
-        meta = cls._meta
-        posargs = tuple(meta.annotations)
-        children = tuple(k for k, v in meta.annotations.items() if is_ast_type(v))
-        children_set = set(children)
-        tag_attr = meta.tag_attribute
-
-        def _init(self, *args, parent=None, **kwargs):
-            self._children = self._children_class(self)
-            self._parent = parent
-
-            if len(args) > len(posargs):
-                n = len(posargs)
-                raise TypeError(f'expected at most {n} positional arguments.')
-
-            n_children = 0
-            for k, v in zip(posargs, args):
-                if k in kwargs:
-                    raise TypeError(f'repeated keyword argument: {k!r}')
-                if k in children_set:
-                    if v.parent is None:
-                        v._parent = self
-                        setattr(self, k, v)
-                        n_children += 1
-                    else:
-                        raise ValueError(f'node already has parent: {v.parent!r}')
-                elif k == tag_attr:
-                    setattr(self, k, v)
-                else:
-                    kwargs[k] = v
-
-            for k in list(kwargs):
-                if k in children_set:
-                    setattr(self, k, kwargs.pop(k))
-                    n_children += 1
-
-            if n_children != len(children):
-                for k in children_set:
-                    try:
-                        getattr(self, k)
-                    except AttributeError:
-                        raise TypeError(f'{k!r} not given')
-
-            self._attrs = kwargs
-
-        return _init
-
-
-class HasMetaMixin:
-    """
-    Base mixin class that allow sub-classes to tweak some aspect of their
-    creation.
-
-    Those methods are executed during the construction of the _meta attribute
-    of the class.
-    """
-    _meta: 'Meta'
-    __slots__ = ()
-
-    @classmethod
-    def _meta_class(cls):
-        """
-        Allow to override the class used to construct the _meta attribute.
-        """
-        return Meta
-
-    @classmethod
-    def _meta_args(cls, meta_obj):
-        """
-        Executed before creating the _meta attribute for the class.
-
-        Receives an instance of the Meta object declared in the class body and
-        returns a dictionary with attributes passed as keyword arguments to the
-        Meta constructor.
-        """
-        kwargs = {}
-        for arg in META_ARGUMENTS:
-            try:
-                kwargs[arg] = getattr(meta_obj, arg)
-            except AttributeError:
-                pass
-
-        extra = {}
-        for attr in dir(meta_obj):
-            if not attr.startswith('_') and attr not in kwargs:
-                extra[attr] = getattr(meta_obj, attr)
-        if extra:
-            kwargs['extra'] = extra
-        return kwargs
-
-    @classmethod
-    def _meta_finalize(cls):
-        """
-        Executed after the class is created and populated with the _meta
-        attribute.
-
-        The default implementation is a no-op, but can be overriden by
-        subclasses.
-        """
-
-    @classmethod
-    def _meta_sexpr_symbol_map(cls) -> dict:
-        """
-        Return a dictionary of constructors mapping S-Expr heads to their
-        corresponding constructor function.
-        """
-        return {}
 
 
 class Meta:
@@ -344,16 +179,10 @@ class Meta:
             return property(lambda x: getattr(x, attr))
 
 
-# Utility functions
 #
-META_ARGUMENTS = tuple(inspect.getfullargspec(Meta.__init__).kwonlyargs)
-
-
-def is_ast_type(cls):
-    """
-    Return True if type is as subclass of Node or Leaf.
-    """
-    return isinstance(cls, type) and issubclass(cls, NodeOrLeaf)
+# Constants and utility functions
+#
+META_ARGUMENTS.extend(inspect.getfullargspec(Meta.__init__).kwonlyargs)
 
 
 def sexpr(meta: Meta, symbol: str = None):
@@ -374,6 +203,8 @@ def sexpr(meta: Meta, symbol: str = None):
     return sexpr_constructor
 
 
-def get_slots(ns):
-    annotations = ns.get('__annotations__', {})
-    return tuple(k for k, v in annotations.items() if is_ast_type(v))
+def is_ast_type(cls):
+    """
+    Return True if type is as subclass of Node or Leaf.
+    """
+    return isinstance(cls, type) and issubclass(cls, NodeOrLeaf)

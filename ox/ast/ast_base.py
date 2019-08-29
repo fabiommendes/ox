@@ -1,7 +1,9 @@
 from sidekick import SExpr, Node as NodeBase, Leaf as LeafBase
 from sidekick.tree.node_base import NodeOrLeaf
 from .children import ChildrenBase
-from .meta import Meta, HasMetaMixin, ASTMeta
+from .meta import Meta
+from ox.ast.ast_meta import ASTMeta
+from ox.ast.ast_meta_mixin import HasMetaMixin
 from .print_context import PrintContext
 from .token import Token
 

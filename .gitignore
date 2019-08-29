@@ -31,3 +31,4 @@ dist/
 .hypothesis/
 cc-test-reporter
 old
+.mypy_cache/
