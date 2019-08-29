@@ -17,7 +17,7 @@ class HasMetaMixin:
         """
         Allow to override the class used to construct the _meta attribute.
         """
-        from .meta import Meta
+        from .meta_attr import Meta
         return Meta
 
     @classmethod

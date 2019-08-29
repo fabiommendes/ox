@@ -1,10 +1,10 @@
 from types import SimpleNamespace
 from typing import Type
 
-from ox.ast.meta import is_ast_type
 from sidekick import Node, Leaf
 from .ast_meta_mixin import HasMetaMixin
 from .children import make_children_class
+from .meta_attr import is_ast_type
 from ..logging import log
 
 
