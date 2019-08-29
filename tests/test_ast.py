@@ -2,6 +2,9 @@ from ox.ast import Expr, ExprNode, AtomMixin
 from sidekick.tree import Leaf, Node, SExprBase
 
 
+#
+# Basic class hierarchy for a simple calculator.
+#
 class Calc(Expr):
     class Meta:
         abstract = True
@@ -47,6 +50,10 @@ class Number(AtomMixin, Calc):
 
 expr = Calc._meta.coerce
 
+
+# ==============================================================================
+# Tests
+# ==============================================================================
 
 class TestCalcLanguageAST:
     def test_class_hierarchy(self):

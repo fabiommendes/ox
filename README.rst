@@ -141,7 +141,8 @@ of grammar rules to their corresponding handler functions.
     # Handle binary operations
     binop = lambda x, op, y: (op.value, x, y)
 
-    parser = ox.parser(lexer,
+    parser = ox.parser(
+        lexer,
     	expr={
     		'expr PLUS term': binop,
     		'term': None,
@@ -205,17 +206,24 @@ functions in order to accept string inputs.
 
     def eval_expr(src, **kwargs):
         return eval_ast(parser(src), env=kwargs)
->>> eval_expr('2 + 2 * 20')
+>>> eval_expr('2 + x * 20', x=2.0)
 42.0
 
-We can call this function in a loop to create a nice calculator written with only
+We can call those functions in a loop to create a nice calculator written with only
 a few lines of Python code!
 
 .. code-block:: python
 
-    def eval_loop(**kwargs):
-        expr = input('expr: ')
-        print('result:', eval_expr(expr, **kwargs))
+    def eval_loop(**env):
+        while True:
+            expr = input('> ')
+            if not expr:
+                if input('quit? [y/N] ').lower() == 'y':
+                    break
+                else:
+                    continue
+            ast = parser(expr)
+            print(eval_ast(ast, env))
 
 
 Compiler

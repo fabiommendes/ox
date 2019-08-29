@@ -1,5 +1,7 @@
 [run]
-include = ox/*
+include =
+    ox/*
+    examples/*
 branch = True
 
 

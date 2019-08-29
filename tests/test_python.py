@@ -6,6 +6,8 @@ from ox.hypothesis import py_value
 from ox.target.python import Atom, BinOp, Name, GetAttr, Call
 from ox.target.python import expr, py, unwrap
 
+src = (lambda x: unwrap(x).source())
+
 
 class TestAstNodeConstruction:
     def test_atomic_node_equality(self):
@@ -80,6 +82,17 @@ class TestWrapperObject:
         assert src(x.foo) == 'x.foo'
         assert src(fn(x)) == 'fn(x)'
         assert src((x + y).method()) == '(x + y).method()'
+
+
+class TestUtilities:
+    def test_free_vars(self):
+        e = unwrap(py.x + py.y + 2)
+        print(e)
+        print(type(e))
+        print(e.__dict__)
+        print(e._attrs)
+        print(e.children)
+        assert unwrap(py.x + py.y + 2).free_vars() == {'x', 'y'}
 
 
 @pytest.mark.hypothesis

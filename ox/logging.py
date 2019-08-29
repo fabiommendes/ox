@@ -1,16 +1,23 @@
+import logging
 import os
 from logging import getLogger
-import logging
 
 log = getLogger('ox')
-logging.basicConfig(format='%(message)s')
-has_env = (lambda x, value='true': os.environ.get(x, '').lower() == value)
+logging.basicConfig(format='[ox] %(message)s')
+
+
+def has_env(varname, value='true'):
+    """
+    Check environment variable is set.
+    """
+    return os.environ.get(varname, '').lower() == value
+
 
 if has_env('DEBUG'):
     log.setLevel(logging.DEBUG)
 elif has_env('OX_LOG', 'debug'):
     log.setLevel(logging.DEBUG)
-elif has_env(logging.INFO):
+elif has_env('OX_LOG', 'info'):
     log.setLevel('INFO')
 elif has_env('OX_LOG', 'warning'):
     log.setLevel(logging.WARNING)

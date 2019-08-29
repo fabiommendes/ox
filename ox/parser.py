@@ -96,7 +96,7 @@ def parse(src, *args, **kwargs):
 #
 # Utilities
 #
-LARK_OPTIONS = {"parser", "lexer", "start"}
+LARK_OPTIONS = {"parser", "lexer"}
 
 
 def extract_lark_options(kwargs):
@@ -108,6 +108,8 @@ def extract_lark_options(kwargs):
             options[opt] = kwargs.pop(opt)
         except KeyError:
             pass
+    if 'start' in kwargs and isinstance(kwargs['start'], (str, list)):
+        options['start'] = kwargs.pop('start')
     return options
 
 
