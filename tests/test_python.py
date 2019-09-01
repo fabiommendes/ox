@@ -3,10 +3,31 @@ from hypothesis import given
 
 # from ox.target.python import List, Tuple, Set, Dict,
 from ox.hypothesis import py_value
-from ox.target.python import Atom, BinOp, Name, GetAttr, Call
+from ox.target.python import Expr, Stmt, Atom, BinOp, Name, GetAttr, Call, Return
 from ox.target.python import expr, py, unwrap
 
 src = lambda x: unwrap(x).source()
+
+
+class TestMetaClass:
+    """
+    Check if class hierarchies are correct and metaclasses initialized everything
+    nicely
+    """
+
+    def test_mro(self):
+        assert Atom._meta.root is Expr
+        assert Return._meta.root is Stmt
+
+    def test_expr_root(self):
+        roles = Expr._meta.wrapper_roles
+        sexpr = Expr._meta.sexpr_symbol_map
+        assert {"getattr", "fcall"}.issubset(roles.keys())
+        assert {"+", "-", "*", "/"}.issubset(sexpr.keys())
+
+    def test_stmt_root(self):
+        sexpr = Stmt._meta.sexpr_symbol_map
+        assert {"return"}.issubset(sexpr.keys())
 
 
 class TestAstNodeConstruction:

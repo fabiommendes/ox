@@ -1,3 +1,4 @@
+from enum import Enum
 from keyword import kwlist as PYTHON_KEYWORDS
 
 from sidekick.types import Union, Case
@@ -17,6 +18,15 @@ class ArgT(Union):
     Star: Case()
     DoubleStar: Case()
     Named: Case(name=str)
+
+
+class Loop(Enum):
+    """
+    Loop commands enumeration (either break/continue)
+    """
+
+    BREAK = "break"
+    CONTINUE = "continue"
 
 
 def is_python_name(name: str) -> bool:

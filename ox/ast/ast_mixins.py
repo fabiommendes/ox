@@ -136,3 +136,16 @@ class StmtExprMixin(StmtNode):
     class Meta:
         abstract = True
         command = "{expr}"
+
+    def wrap_expr_with(self):
+        """
+        Return True/False/None or a pair of enclosing brackets used to wrap
+        expression when generating tokens.
+        """
+        return False
+
+    def tokens(self, ctx):
+        yield from from_template(
+            self._meta.command,
+            {"expr": wrap_tokens(self.expr.tokens(ctx), self.wrap_expr_with())},
+        )

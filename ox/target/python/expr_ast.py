@@ -67,7 +67,7 @@ register_expr = curry(2, expr.register)
 # ==============================================================================
 
 
-class Atom(ExprLeaf, ast.AtomMixin):
+class Atom(ast.AtomMixin, ExprLeaf):
     """
     Atomic data such as numbers, strings, etc.
 
@@ -86,7 +86,7 @@ class Atom(ExprLeaf, ast.AtomMixin):
         yield "..." if self.value is ... else repr(self.value)
 
 
-class Name(ExprLeaf, ast.NameMixin):
+class Name(ast.NameMixin, ExprLeaf):
     """
     Represent a Python name
     """
@@ -100,7 +100,7 @@ class Name(ExprLeaf, ast.NameMixin):
 # ==============================================================================
 
 
-class And(ExprNode):
+class And(ast.BinaryMixin, ExprNode):
     """
     Short-circuit "and" operator.
     """
@@ -110,9 +110,10 @@ class And(ExprNode):
 
     class Meta:
         sexpr_symbol = "and"
+        command = "{lhs} and {rhs}"
 
 
-class Or(ExprNode):
+class Or(ast.BinaryMixin, ExprNode):
     """
     Short-circuit "or" operator.
     """
@@ -122,9 +123,10 @@ class Or(ExprNode):
 
     class Meta:
         sexpr_symbol = "or"
+        command = "{lhs} or {rhs}"
 
 
-class UnaryOp(ExprNode, ast.UnaryOpMixin):
+class UnaryOp(ast.UnaryOpMixin, ExprNode):
     """
     Unary operators like +, -, ~ and not.
     """
@@ -140,7 +142,7 @@ class UnaryOp(ExprNode, ast.UnaryOpMixin):
         yield from self.expr.tokens(ctx)
 
 
-class BinOp(ExprNode, ast.BinaryOpMixin):
+class BinOp(ast.BinaryOpMixin, ExprNode):
     """
     Regular binary operators like for arithmetic and bitwise arithmetic
     operations. It excludes comparisons and bitwise operations since they are
@@ -169,7 +171,7 @@ class BinOp(ExprNode, ast.BinaryOpMixin):
         yield from wrap_tokens(self.rhs.tokens(ctx), wrap=wrap)
 
 
-class GetAttr(ExprNode, ast.GetAttrMixin):
+class GetAttr(ast.GetAttrMixin, ExprNode):
     """
     Get attribute expression.
     """
@@ -281,7 +283,7 @@ class Arg(ExprNode):
             yield from self.expr.tokens(ctx)
 
 
-class Yield(ExprNode, ast.CommandMixin):
+class Yield(ast.CommandMixin, ExprNode):
     """
     "yield" expression.
     """
@@ -292,7 +294,7 @@ class Yield(ExprNode, ast.CommandMixin):
         command = "(yield {expr})"
 
 
-class YieldFrom(ExprNode, ast.CommandMixin):
+class YieldFrom(ast.CommandMixin, ExprNode):
     """
     "yield from" Expression.
     """

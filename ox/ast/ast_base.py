@@ -79,6 +79,12 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
         """
         return self._meta.print_context_class(**kwargs)
 
+    def simplify(self):
+        """
+        Simplify expression, when possible.
+        """
+        return self.copy()
+
 
 class Node(AST, NodeBase):
     """

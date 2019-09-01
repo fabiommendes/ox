@@ -1,4 +1,3 @@
-from sidekick.tree import NodeOrLeaf
 from .expr_ast import Name, Expr, PyAtom, Atom
 from .stmt_ast import Stmt
 from .utils import is_python_name
@@ -65,6 +64,7 @@ def S(head, *args, parse=False, **kwargs):
         raise ValueError(f"invalid S-Expr head: {head!r}") from exc
 
 
-meta = Expr._meta
-sexpr_map = meta.sexpr_symbol_map
+expr_meta = Expr._meta
+stmt_meta = Stmt._meta
+sexpr_map = {**expr_meta.sexpr_symbol_map, **stmt_meta.sexpr_symbol_map}
 py = PyMagic()

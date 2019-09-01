@@ -1,5 +1,6 @@
 from sidekick import curry
 from .expr_ast import Expr
+from .utils import Loop as LoopAction
 from ... import ast
 from ...ast import Stmt as StmtBase
 
@@ -11,8 +12,12 @@ class Stmt(StmtBase):
     Base class for Python AST nodes that represent statements.
     """
 
+    class Meta:
+        root = True
+        abstract = True
 
-class StmtLeaf(Stmt, ast.StmtLeaf):
+
+class StmtLeaf(ast.StmtLeaf, Stmt):
     """
     Base class for Python Expression leaf nodes.
     """
@@ -21,7 +26,7 @@ class StmtLeaf(Stmt, ast.StmtLeaf):
         abstract = True
 
 
-class StmtNode(Stmt, ast.StmtNode):
+class StmtNode(ast.StmtNode, Stmt):
     """
     Base class for Python Expression leaf nodes.
     """
@@ -47,3 +52,41 @@ class Return(ast.StmtExprMixin, StmtNode):
     class Meta:
         command = "return {expr}"
         sexpr_symbol = "return"
+
+    @classmethod
+    def _meta_sexpr_symbol_map(cls) -> dict:
+        return {"return": cls}
+
+
+class Loop(StmtLeaf):
+    """
+    A return statement (return <expr>)
+    """
+
+    value: LoopAction
+
+    @classmethod
+    def Break(cls, **kwargs):
+        """
+        Create Loop instance representing a "break" statement.
+        """
+        return cls(LoopAction.BREAK, **kwargs)
+
+    @classmethod
+    def Continue(cls, **kwargs):
+        """
+        Create Loop instance representing a "continue" statement.
+        """
+        return cls(LoopAction.CONTINUE, **kwargs)
+
+    @classmethod
+    def _meta_sexpr_symbol_map(cls) -> dict:
+        return {
+            "break": cls.Break,
+            "continue": cls.Continue,
+            LoopAction.BREAK: cls.Break,
+            LoopAction.CONTINUE: cls.Continue,
+        }
+
+    def tokens(self, ctx):
+        yield self.value.value
