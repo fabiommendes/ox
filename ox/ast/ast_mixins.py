@@ -1,7 +1,14 @@
-from .ast_core import ExprLeaf, ExprNode, Expr
+from .ast_core import ExprLeaf, ExprNode, Expr, StmtNode
 from .utils import attr_property, wrap_tokens, from_template
 
-__all__ = ["NameMixin", "AtomMixin", "CommandMixin", "BinaryMixin", "GetAttrMixin"]
+__all__ = [
+    "NameMixin",
+    "AtomMixin",
+    "CommandMixin",
+    "BinaryMixin",
+    "GetAttrMixin",
+    "StmtExprMixin",
+]
 
 
 class NameMixin(ExprLeaf):
@@ -114,3 +121,18 @@ class GetAttrMixin(ExprNode):
             "attr": [self.attr],
         }
         yield from from_template(self._meta.command, ctx)
+
+
+#
+# Statement mixins
+#
+class StmtExprMixin(StmtNode):
+    """
+    Command that modifies a single expression (ex.: yield <expr>)
+    """
+
+    expr: Expr
+
+    class Meta:
+        abstract = True
+        command = "{expr}"

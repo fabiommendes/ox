@@ -1,6 +1,8 @@
 from sidekick.tree import SExprBase
 from .ast_base import AST, Leaf, Node
 
+__all__ = ["Expr", "ExprLeaf", "ExprNode", "Stmt", "StmtLeaf", "StmtNode"]
+
 
 class Expr(AST):
     """
@@ -110,9 +112,6 @@ class ExprNode(Node, SExprBase, Expr):
 
     __eq__ = SExprBase.__eq__
 
-    def _repr(self, children=True):
-        return Node._repr(self, children=children)
-
     def __repr__(self):
         args = []
         for attr in self._meta.annotations:
@@ -121,7 +120,7 @@ class ExprNode(Node, SExprBase, Expr):
         return f"{self.__class__.__name__}({args})"
 
 
-class Stmt(Node):
+class Stmt(AST):
     """
     Base class for AST nodes that represent statements.
     """
@@ -131,3 +130,27 @@ class Stmt(Node):
     class Meta:
         abstract = True
         root = True
+
+
+class StmtLeaf(Leaf, Stmt):
+    """
+    Base class for statement leaf types.
+    """
+
+    class Meta:
+        abstract = True
+
+    def _repr_as_child(self):
+        return self._repr()
+
+
+class StmtNode(Node, SExprBase, Stmt):
+    """
+    Base class for statement node types.
+    """
+
+    class Meta:
+        abstract = True
+
+    __eq__ = SExprBase.__eq__
+    __repr__ = ExprNode.__repr__

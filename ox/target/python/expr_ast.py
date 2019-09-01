@@ -11,6 +11,24 @@ PyAtom = (type(None), type(...), bool, int, float, complex, str, bytes)
 PyAtomT = Union[None, bool, int, float, complex, str, bytes]  # ..., NotImplemented
 PyContainerT = Union[list, tuple, set, dict]
 
+__all__ = [
+    "Expr",
+    "ExprLeaf",
+    "ExprNode",
+    "expr",
+    "register_expr",
+    "Atom",
+    "Name",
+    "And",
+    "Or",
+    "BinOp",
+    "UnaryOp",
+    "GetAttr",
+    "Call",
+    "Yield",
+    "YieldFrom",
+]
+
 
 class Expr(ast.Expr):
     """
@@ -263,25 +281,23 @@ class Arg(ExprNode):
             yield from self.expr.tokens(ctx)
 
 
-class Yield(ExprNode):
+class Yield(ExprNode, ast.CommandMixin):
     """
     "yield" expression.
     """
 
     expr: Expr
 
-    def tokens(self, ctx):
-        yield "("
-        yield self._command + " "
-        if not isinstance(self.expr, Atom) or self.expr.value is not None:
-            yield from self.expr.tokens(ctx)
-        yield ")"
+    class Meta:
+        command = "(yield {expr})"
 
 
-class YieldFrom(Yield):
+class YieldFrom(ExprNode, ast.CommandMixin):
     """
     "yield from" Expression.
     """
 
     expr: Expr
-    _command = "yield from"
+
+    class Meta:
+        command = "(yield from {expr})"
