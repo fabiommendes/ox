@@ -59,6 +59,14 @@ class BinaryOp(Op):
         raise NotImplementedError("must be implemented as classmethod in subclass")
 
     @classmethod
+    def function_mapping(cls):
+        """
+        Return the mapping of function handlers that compute values of expressions
+        of statically known values.
+        """
+        raise NotImplementedError("must be implemented as classmethod in subclass")
+
+    @classmethod
     def right_associative_set(cls) -> set:
         """
         Return the set of all right associative operators. Other operators are
@@ -94,3 +102,14 @@ class BinaryOp(Op):
         True if operator is left-associative.
         """
         return not self.right_associative
+
+    @property
+    def function(self):
+        """
+        Function handler related to operator.
+        """
+        try:
+            cache = self.__function_handler_map
+        except AttributeError:
+            type(self).__function_handler_map = cache = self.function_mapping()
+        return cache[self]

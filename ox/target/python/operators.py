@@ -1,3 +1,5 @@
+import operator as op
+
 from ... import operators as base
 
 
@@ -47,38 +49,72 @@ class BinaryOp(base.BinaryOp):
 
     @classmethod
     def precedence_mapping(cls):
-        op = cls
         return {
-            op.OR_: 1,
-            op.AND_: 2,
+            cls.OR_: 1,
+            cls.AND_: 2,
             # Comparisons
-            op.EQ: 3,
-            op.NE: 3,
-            op.GT: 3,
-            op.GE: 3,
-            op.LT: 3,
-            op.LE: 3,
-            op.IS: 3,
-            op.IS_NOT: 3,
-            op.IN: 3,
-            op.NOT_IN: 3,
+            cls.EQ: 3,
+            cls.NE: 3,
+            cls.GT: 3,
+            cls.GE: 3,
+            cls.LT: 3,
+            cls.LE: 3,
+            cls.IS: 3,
+            cls.IS_NOT: 3,
+            cls.IN: 3,
+            cls.NOT_IN: 3,
             # Bitwise
-            op.OR: 4,
-            op.XOR: 5,
-            op.AND: 6,
-            op.RSHIFT: 7,
-            op.LSHIFT: 7,
+            cls.OR: 4,
+            cls.XOR: 5,
+            cls.AND: 6,
+            cls.RSHIFT: 7,
+            cls.LSHIFT: 7,
             # Plus ops
-            op.ADD: 8,
-            op.SUB: 8,
+            cls.ADD: 8,
+            cls.SUB: 8,
             # Mul ops
-            op.MUL: 9,
-            op.TRUEDIV: 9,
-            op.MATMUL: 9,
-            op.MOD: 9,
-            op.FLOORDIV: 9,
+            cls.MUL: 9,
+            cls.TRUEDIV: 9,
+            cls.MATMUL: 9,
+            cls.MOD: 9,
+            cls.FLOORDIV: 9,
             # Power
-            op.POW: 10,
+            cls.POW: 10,
+        }
+
+    @classmethod
+    def function_mapping(cls):
+        return {
+            cls.OR_: lambda x, y: x or y,
+            cls.AND_: lambda x, y: x and y,
+            # Comparisons
+            cls.EQ: op.eq,
+            cls.NE: op.ne,
+            cls.GT: op.gt,
+            cls.GE: op.ge,
+            cls.LT: op.lt,
+            cls.LE: op.le,
+            cls.IS: op.is_,
+            cls.IS_NOT: op.is_not,
+            cls.IN: lambda x, y: x in y,
+            cls.NOT_IN: lambda x, y: x not in y,
+            # Bitwise
+            cls.OR: lambda x, y: x | y,
+            cls.XOR: op.xor,
+            cls.AND: lambda x, y: x & y,
+            cls.RSHIFT: op.rshift,
+            cls.LSHIFT: op.lshift,
+            # Plus ops
+            cls.ADD: op.add,
+            cls.SUB: op.sub,
+            # Mul ops
+            cls.MUL: op.mul,
+            cls.TRUEDIV: op.truediv,
+            cls.MATMUL: op.matmul,
+            cls.MOD: op.mod,
+            cls.FLOORDIV: op.floordiv,
+            # Power
+            cls.POW: op.pow,
         }
 
     @classmethod

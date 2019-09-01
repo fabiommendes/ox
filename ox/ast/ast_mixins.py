@@ -1,3 +1,4 @@
+from sidekick import Just, Maybe
 from .ast_core import ExprLeaf, ExprNode, Expr, StmtNode
 from .utils import attr_property, from_template
 
@@ -47,6 +48,8 @@ class AtomMixin(ExprLeaf):
     Atom sub-classes are always expressions.
     """
 
+    has_static_value = True
+
     class Meta:
         abstract = True
         source = str
@@ -58,6 +61,9 @@ class AtomMixin(ExprLeaf):
         coerce = cls._meta.coerce
         for kind in cls._meta.types:
             coerce.register(kind)(cls)
+
+    def static_value(self) -> Maybe:
+        return Just(self.value)
 
     def tokens(self, ctx):
         yield self._meta.source(self.value)

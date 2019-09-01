@@ -1,3 +1,4 @@
+from sidekick import Maybe
 from sidekick import SExpr, Node as NodeBase, Leaf as LeafBase
 from sidekick.tree.node_base import NodeOrLeaf
 from .ast_meta import ASTMeta
@@ -39,6 +40,7 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
     # Queries
     is_stmt = False
     is_expr = False
+    has_static_value = False
 
     class Meta:
         abstract = True
@@ -55,6 +57,16 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
     #
     # API methods
     #
+    def static_value(self) -> Maybe:
+        """
+        Return the statically defined expression value.
+
+        It returns a Maybe type:
+            Nothing -> value cannot be known statically
+            Just(value) -> value is known
+        """
+        return Maybe.Nothing
+
     def source(self, context=None):
         """
         Return source code representation for node.
@@ -106,9 +118,15 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
 
     def simplify(self):
         """
-        Simplify expression, when possible.
+        Recursively simplify expression, when possible.
         """
         return self.copy()
+
+    def from_static_children(self, *children):
+        """
+        Create new AST node from statically known values for children.
+        """
+        raise NotImplementedError
 
 
 class Node(AST, NodeBase):
@@ -128,7 +146,9 @@ class Node(AST, NodeBase):
     class Meta:
         abstract = True
 
-    def copy(self):
+    def _simplify_or_copy(self, recur):
+        """Common implementation for both methods"""
+
         meta = self._meta
         new = object.__new__(type(self))
         new._parent = None
@@ -137,8 +157,23 @@ class Node(AST, NodeBase):
         if meta.has_tag_field:
             new._tag = self._tag
         for attr in meta.children_fields:
-            setattr(new, attr, getattr(self, attr).copy())
+            setattr(new, attr, recur(getattr(self, attr)))
         return new
+
+    def copy(self):
+        return self._simplify_or_copy(lambda x: x.copy())
+
+    def simplify(self):
+        args = []
+        for child in self.children:
+            value = child.static_value()
+            if value.is_just:
+                args.append(value.value)
+            else:
+                break
+        else:
+            return self.from_static_children(*args)
+        return self._simplify_or_copy(lambda x: x.simplify())
 
 
 class Leaf(AST, LeafBase):

@@ -112,6 +112,9 @@ class And(ast.BinaryMixin, ExprNode):
         sexpr_symbol = "and"
         command = "{lhs} and {rhs}"
 
+    def from_static_children(self, lhs, rhs):
+        return expr(lhs and rhs)
+
 
 class Or(ast.BinaryMixin, ExprNode):
     """
@@ -124,6 +127,9 @@ class Or(ast.BinaryMixin, ExprNode):
     class Meta:
         sexpr_symbol = "or"
         command = "{lhs} or {rhs}"
+
+    def from_static_children(self, lhs, rhs):
+        return expr(lhs or rhs)
 
 
 class UnaryOp(ast.UnaryOpMixin, ExprNode):
@@ -141,6 +147,9 @@ class UnaryOp(ast.UnaryOpMixin, ExprNode):
         yield self.op.value
         yield from self.expr.tokens(ctx)
 
+    def from_static_children(self, child):
+        return expr(self.tag.function(child))
+
 
 class BinOp(ast.BinaryOpMixin, ExprNode):
     """
@@ -155,6 +164,9 @@ class BinOp(ast.BinaryOpMixin, ExprNode):
 
     class Meta:
         sexpr_unary_op_class = UnaryOp
+
+    def from_static_children(self, lhs, rhs):
+        return expr(self.tag.function(lhs, rhs))
 
     def wrap_child_tokens(self, child, role):
         if isinstance(child, BinOp):
