@@ -1,5 +1,5 @@
 from .ast_core import ExprLeaf, ExprNode, Expr, StmtNode
-from .utils import attr_property, wrap_tokens, from_template
+from .utils import attr_property, from_template
 
 __all__ = [
     "NameMixin",
@@ -107,20 +107,11 @@ class GetAttrMixin(ExprNode):
         """
         return cls(expr, attr)
 
-    def wrap_expr_with(self):
-        """
-        Return a pair of parenthesis or other enclosing brackets.
-
-        Must return True, False or a pair of enclosing tokens.
-        """
-        return False
-
     def tokens(self, ctx):
-        ctx = {
-            "expr": wrap_tokens(self.expr.tokens(ctx), self.wrap_expr_with()),
-            "attr": [self.attr],
-        }
-        yield from from_template(self._meta.command, ctx)
+        yield from from_template(
+            self._meta.command,
+            {"expr": self.child_tokens(self.expr, "expr", ctx), "attr": [self.attr]},
+        )
 
 
 #
@@ -136,16 +127,3 @@ class StmtExprMixin(StmtNode):
     class Meta:
         abstract = True
         command = "{expr}"
-
-    def wrap_expr_with(self):
-        """
-        Return True/False/None or a pair of enclosing brackets used to wrap
-        expression when generating tokens.
-        """
-        return False
-
-    def tokens(self, ctx):
-        yield from from_template(
-            self._meta.command,
-            {"expr": wrap_tokens(self.expr.tokens(ctx), self.wrap_expr_with())},
-        )

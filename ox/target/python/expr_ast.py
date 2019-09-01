@@ -156,19 +156,17 @@ class BinOp(ast.BinaryOpMixin, ExprNode):
     class Meta:
         sexpr_unary_op_class = UnaryOp
 
-    def check_wrap(self, other):
-        if isinstance(other, BinOp):
-            return self.precedence_level < other.precedence_level
-        elif isinstance(other, (UnaryOp, And, Or)):
+    def wrap_child_tokens(self, child, role):
+        if isinstance(child, BinOp):
+            return self.precedence_level < child.precedence_level
+        elif isinstance(child, (UnaryOp, And, Or)):
             return True
         return False
 
     def tokens(self, ctx):
-        wrap = self.check_wrap(self.lhs)
-        yield from wrap_tokens(self.lhs.tokens(ctx), wrap=wrap)
+        yield from self.child_tokens(self.lhs, "lhs", ctx)
         yield f" {self.op.value} "
-        wrap = self.check_wrap(self.rhs)
-        yield from wrap_tokens(self.rhs.tokens(ctx), wrap=wrap)
+        yield from self.child_tokens(self.rhs, "rhs", ctx)
 
 
 class GetAttr(ast.GetAttrMixin, ExprNode):
@@ -179,7 +177,7 @@ class GetAttr(ast.GetAttrMixin, ExprNode):
     expr: Expr
     attr: str
 
-    def wrap_expr_with(self):
+    def wrap_child_tokens(self, child, role):
         expr = self.expr
         if isinstance(expr, (BinOp, UnaryOp, And, Or)):
             return True

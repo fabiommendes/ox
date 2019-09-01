@@ -6,6 +6,7 @@ from .children import ChildrenBase
 from .meta_attr import Meta
 from .print_context import PrintContext
 from .token import Token
+from .utils import wrap_tokens, from_template
 
 
 class Tree(SExpr):
@@ -62,6 +63,24 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
             context = self.print_context()
         return "".join(self.tokens(context))
 
+    def child_tokens(self, child, role, context):
+        """
+        Yield tokens for the given element as a child in the given role.
+        """
+        wrap = self.wrap_child_tokens(child, role)
+        if wrap:
+            yield from wrap_tokens(child.tokens(context), wrap)
+        else:
+            yield from child.tokens(context)
+
+    def wrap_child_tokens(self, child, role):
+        """
+        Return a pair of parenthesis or other enclosing brackets.
+
+        Must return True, False or a pair of enclosing tokens.
+        """
+        return False
+
     def tokens(self, context):
         """
         Return an iterator over tokens for the output source code.
@@ -71,6 +90,12 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
 
         Subclasses should override tokens_for_context instead of this method.
         """
+        if self._meta.command:
+            ctx = {
+                f: self.child_tokens(getattr(self, f), f, context)
+                for f in self._meta.children_fields
+            }
+            return from_template(self._meta.command, ctx)
         raise NotImplementedError("tokens() method must be implemented in subclass")
 
     def print_context(self, **kwargs):
