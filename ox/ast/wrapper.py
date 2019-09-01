@@ -194,7 +194,7 @@ class WrapperMeta(type):
     def __get_role(cls, role):
         for root in cls.__roots:
             try:
-                return root._meta.wrapper_roles[role]
+                return root._meta.sexpr_symbol[role]
             except KeyError:
                 pass
         return None

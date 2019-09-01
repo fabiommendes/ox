@@ -1,9 +1,9 @@
 from sidekick import SExpr, Node as NodeBase, Leaf as LeafBase
 from sidekick.tree.node_base import NodeOrLeaf
+from .ast_meta import ASTMeta
+from .ast_meta_mixin import HasMetaMixin
 from .children import ChildrenBase
 from .meta_attr import Meta
-from ox.ast.ast_meta import ASTMeta
-from ox.ast.ast_meta_mixin import HasMetaMixin
 from .print_context import PrintContext
 from .token import Token
 
@@ -34,6 +34,8 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
     precedence_level = 0
     assumptions = None
     execution_context = None
+
+    # Queries
     is_stmt = False
     is_expr = False
 
@@ -100,10 +102,11 @@ class Node(AST, NodeBase):
         new = object.__new__(type(self))
         new._parent = None
         new._attrs = self._attrs.copy()
-        if meta.tag_attribute:
-            setattr(new, meta.tag_attribute, getattr(self, meta.tag_attribute))
-        for attr in meta.children_attributes:
-            setattr(new, attr, getattr(self, attr))
+        new._children = new._children_class(new)
+        if meta.has_tag_field:
+            new._tag = self._tag
+        for attr in meta.children_fields:
+            setattr(new, attr, getattr(self, attr).copy())
         return new
 
 

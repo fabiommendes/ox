@@ -1,4 +1,3 @@
-from ox.ast import Node
 from sidekick.tree import SExprBase
 from .ast_base import AST, Leaf, Node
 
@@ -85,6 +84,7 @@ class Expr(AST):
         for child in self.children:
             xs = child.free_vars(exclude, include)
             xs.difference_update(exclude)
+            vars.update(xs)
         return vars
 
 
@@ -126,7 +126,6 @@ class Stmt(Node):
     Base class for AST nodes that represent statements.
     """
 
-    is_expr = False
     is_stmt = True
 
     class Meta:

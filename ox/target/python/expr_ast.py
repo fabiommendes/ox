@@ -1,6 +1,7 @@
 from typing import Union, Optional
 
 import ox.ast.ast_mixins
+import ox.ast.ast_operator_mixins
 from ox.ast import Tree
 from sidekick import curry
 from .operators import UnaryOp as UnaryOpEnum, BinaryOp as BinaryOpEnum
@@ -106,12 +107,12 @@ class Or(ExprNode):
         sexpr_symbol = "or"
 
 
-class UnaryOp(ExprNode, ox.ast.ast_mixins.UnaryOpMixin):
+class UnaryOp(ExprNode, ox.ast.ast_operator_mixins.UnaryOpMixin):
     """
     Unary operators like +, -, ~ and not.
     """
 
-    op: UnaryOpEnum
+    tag: UnaryOpEnum
     expr: Expr
 
     class Meta:
@@ -122,14 +123,14 @@ class UnaryOp(ExprNode, ox.ast.ast_mixins.UnaryOpMixin):
         yield from self.expr.tokens(ctx)
 
 
-class BinOp(ExprNode, ox.ast.ast_mixins.BinaryOpMixin):
+class BinOp(ExprNode, ox.ast.ast_operator_mixins.BinaryOpMixin):
     """
     Regular binary operators like for arithmetic and bitwise arithmetic
     operations. It excludes comparisons and bitwise operations since they are
     treated differently by Python grammar.
     """
 
-    op: BinaryOpEnum
+    tag: BinaryOpEnum
     lhs: Expr
     rhs: Expr
 

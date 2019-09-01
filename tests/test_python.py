@@ -55,11 +55,11 @@ class TestAstNodeConstruction:
         assert e.expr == Name("foo")
         assert e.source() == "foo('bar', kw=42)"
 
-    def _test_container_nodes(self):
-        assert expr([1, 2]) == List([Atom(1), Atom(2)])
-        assert expr((1, 2)) == Tuple([Atom(1), Atom(2)])
-        assert expr({1, 2}) == Set([Atom(1), Atom(2)])
-        assert expr({1: 2}) == Dict([(Atom(1), Atom(2))])
+    # def _test_container_nodes(self):
+    #     assert expr([1, 2]) == List([Atom(1), Atom(2)])
+    #     assert expr((1, 2)) == Tuple([Atom(1), Atom(2)])
+    #     assert expr({1, 2}) == Set([Atom(1), Atom(2)])
+    #     assert expr({1: 2}) == Dict([(Atom(1), Atom(2))])
 
 
 class TestWrapperObject:
@@ -86,12 +86,7 @@ class TestWrapperObject:
 
 class TestUtilities:
     def test_free_vars(self):
-        e = unwrap(py.x + py.y + 2)
-        print(e)
-        print(type(e))
-        print(e.__dict__)
-        print(e._attrs)
-        print(e.children)
+        assert unwrap(py.x).free_vars() == {"x"}
         assert unwrap(py.x + py.y + 2).free_vars() == {"x", "y"}
 
 

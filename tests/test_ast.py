@@ -1,6 +1,9 @@
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from ox.ast import Expr, ExprNode, AtomMixin
+from sidekick.hypothesis.tree import kwargs
 from sidekick.tree import Leaf, Node, SExprBase
 
 
@@ -51,6 +54,29 @@ class Number(AtomMixin, Calc):
 
 
 expr = Calc._meta.coerce
+
+
+def build_attrs(node, attrs):
+    node.attrs.update(attrs)
+    return node
+
+
+def numbers(attr=False, **extra):
+    ns = st.one_of(st.floats(**extra), st.integers()).map(Number)
+
+    if attr:
+        return ns
+    args = kwargs(allow_private=False, exclude=("lhs", "rhs", *dir(Calc)))
+    return st.builds(build_attrs, ns, args)
+
+
+def exprs(depth=5, **kwargs):
+    tt = st.one_of(st.just(Add), st.just(Sub), st.just(Mul), st.just(Div))
+    if depth == 1:
+        arg = numbers(**kwargs)
+    else:
+        arg = st.one_of(numbers(**kwargs), exprs(depth=depth - 1, **kwargs))
+    return st.builds(lambda f, lhs, rhs: f(lhs, rhs), tt, arg, arg)
 
 
 # ==============================================================================
@@ -110,6 +136,8 @@ class TestCalcLanguageAST:
         assert num.attrs == {}
 
         add = Add(Number(40), Number(2))
+        assert "lhs" not in add.attrs
+        assert "rhs" not in add.attrs
         assert add.lhs == Number(40)
         assert add.rhs == Number(2)
         assert add.lhs.parent is add
@@ -132,3 +160,19 @@ class TestCalcLanguageAST:
     def test_coerce_instances(self):
         assert expr(Number(42)) == Number(42)
         assert expr(42) == Number(42)
+
+
+@pytest.mark.slow
+class TestASTInvariants:
+    @given(exprs(attr=True, allow_nan=False))
+    def test_ast_copy(self, e):
+        cp = e.copy()
+        assert cp == e
+        assert type(cp) is type(e)
+        assert e.attrs == cp.attrs
+
+        if isinstance(e, Number):
+            assert e.value == cp.value
+        else:
+            assert e.lhs == cp.lhs
+            assert e.rhs == cp.rhs

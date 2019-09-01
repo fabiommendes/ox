@@ -1,8 +1,9 @@
 import inspect
 from enum import Enum
 from functools import singledispatch
-from typing import Optional, Type, Dict, Callable, Union
+from typing import Optional, Type, Dict, Callable, Union, Tuple
 
+from sidekick import lazy
 from sidekick.tree import Leaf, Node, NodeOrLeaf
 from .ast_meta_mixin import HasMetaMixin, META_ARGUMENTS
 from .wrapper import Wrapper, unwrap
@@ -22,7 +23,72 @@ class Meta:
     type: Type[HasMetaMixin]
     sexpr_symbol_map: Dict[SExprKey, Callable[..., HasMetaMixin]]
 
+    # Derived attributes
     root_name = property(lambda self: self.root_meta.type.__name__)
+
+    @lazy
+    def has_tag_field(self):
+        """
+        Return True if first field is 'tag'.
+        """
+        return self.fields and self.fields[0] == "tag"
+
+    @lazy
+    def children_fields(self) -> Tuple[str, ...]:
+        """
+        Tuple of fields associated with child nodes.
+        """
+        fields = list(self.fields)
+        annotations = self.annotations
+
+        if fields and fields[0] == "tag":
+            del fields[0]
+        while fields and not is_ast_type(annotations[fields[-1]]):
+            fields.pop()
+        if any(not is_ast_type(annotations[f]) for f in fields):
+            raise TypeError(
+                "invalid configuration: all children fields must be "
+                "declared contiguously"
+            )
+        return tuple(fields)
+
+    @lazy
+    def attr_fields(self) -> Tuple[str, ...]:
+        """
+        Tuple of fields that are expected (sometimes even required) attributes.
+        """
+        children = set(self.children_fields)
+        attrs = tuple(f for f in self.fields if f not in children)
+        return attrs[1:] if attrs and attrs[0] == "tag" else attrs
+
+    @lazy
+    def wrapper_roles(self):
+        """
+        A mapping from binary operations to the corresponding
+        constructor function.
+
+        The constructor function builds a node that represents the given
+        expression. Wrapper roles are often declared on expression classes that
+        represent the given role.
+        """
+        result = {} if self.is_root else self.root_meta.wrapper_roles
+        for role in ["getattr", "getitem", "fcall"]:
+            if hasattr(self.type, "_meta_" + role):
+                result[role] = getattr(self.type, "_meta_" + role)
+        return result
+
+    @lazy
+    def sexpr_symbol_map(self):
+        """
+        A mapping from symbols/strings/types to the corresponding S-Expression
+        constructors.
+
+        This mapping is shared between all elements in the same root hierarchy.
+        """
+        if self.is_root:
+            return {}
+        else:
+            return self.root_meta.sexpr_symbol_map
 
     @property
     def fullname(self):
@@ -35,15 +101,13 @@ class Meta:
         extra=None,
         *,
         abstract=False,
-        root=None,
+        root: Optional[type] = None,
         sexpr_symbol=None,
         sexpr_symbol_map=None,
     ):
-
         cls._meta = self
-        if extra:
-            for k, v in extra.items():
-                setattr(self, k, v)
+        for k, v in (extra or {}).items():
+            setattr(self, k, v)
 
         self.type = cls
         self.abstract = abstract
@@ -55,12 +119,15 @@ class Meta:
             self.root_meta = self
         elif root is None or root is False:
             for sub in cls.mro()[1:]:
-                if issubclass(sub, HasMetaMixin) and sub is not HasMetaMixin:
-                    if sub._meta.is_root:
-                        self.root = sub._meta.type
-                        self.root_meta = self.root._meta
-                        self.is_root = False
-                        break
+                if (
+                    issubclass(sub, HasMetaMixin)
+                    and sub is not HasMetaMixin
+                    and sub._meta.is_root
+                ):
+                    self.root = sub._meta.type
+                    self.root_meta = self.root._meta
+                    self.is_root = False
+                    break
         elif isinstance(root, type) and issubclass(root, HasMetaMixin):
             self.is_root = False
             self.root = root
@@ -75,45 +142,27 @@ class Meta:
         self.leaf_subclasses = set()
         self.node_subclasses = set()
         assert not (self.is_leaf and self.is_node), cls.__mro__
+        self._populate_subclass_tree()
 
-        if not abstract and not self.is_root:
+        # Derived properties
+        self.annotations = getattr(cls, "__annotations__", {})
+        self.fields = tuple(self.annotations)
+
+        # Register s-expr factory mappings
+        self.sexpr_symbol_map.update(sexpr_symbol_map or {})
+        if sexpr_symbol:
+            self.sexpr_symbol_map[sexpr_symbol] = sexpr(self, sexpr_symbol)
+        self.sexpr_symbol_map[sexpr_symbol] = sexpr(self)
+
+    def _populate_subclass_tree(self):
+        cls = self.type
+        if not self.abstract and not self.is_root:
             meta = self.root_meta
             meta.subclasses.add(cls)
             if self.is_leaf:
                 meta.leaf_subclasses.add(cls)
             if self.is_node:
                 meta.node_subclasses.add(cls)
-
-        # Derived properties
-        self.annotations = getattr(cls, "__annotations__", {})
-        self.attributes = tuple(self.annotations)
-
-        # Register s-expr factory mappings
-        if self.root_meta is self or self.is_root:
-            sexpr_map = {}
-        else:
-            sexpr_map = self.root_meta.sexpr_symbol_map
-        self.sexpr_symbol_map = sexpr_map
-        if sexpr_symbol_map:
-            sexpr_map.update(sexpr_symbol_map(self.type))
-        if sexpr_symbol:
-            sexpr_map[sexpr_symbol] = sexpr(self, sexpr_symbol)
-        sexpr_map[self.type] = sexpr(self)
-
-        # S-expr mappings
-        self.tag_attribute = None
-        items = self.annotations.items()
-        if self.is_node and items:
-            first_arg, first_arg_type = next(iter(items))
-            if not issubclass(first_arg_type, NodeOrLeaf):
-                self.tag_attribute = first_arg
-        self.children_attributes = tuple(self.children())
-
-        # Wrapper expressions
-        self.wrapper_roles = {} if self.is_root else self.root_meta.wrapper_roles
-        for role in ["getattr", "getitem", "fcall"]:
-            if hasattr(cls, "_meta_" + role):
-                self.wrapper_roles[role] = getattr(cls, "_meta_" + role)
 
     def __repr__(self):
         return f"Meta({self.type.__name__})"
@@ -173,19 +222,6 @@ class Meta:
         Iterate over all attributes that are treated as child nodes.
         """
         yield from (k for k, v in self.annotations.items() if is_ast_type(v))
-
-    def tag_descriptor(self):
-        """
-        Return a descriptor object for the tag attribute.
-        """
-
-        if self.is_leaf:
-            return None
-        elif self.tag_attribute is None:
-            return property(type)
-        else:
-            attr = self.tag_attribute
-            return property(lambda x: getattr(x, attr))
 
 
 #
