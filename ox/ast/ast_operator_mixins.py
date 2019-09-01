@@ -5,6 +5,14 @@ from sidekick import alias
 from .ast_core import ExprNode, Expr
 from ..operators import Op, BinaryOp
 
+__all__ = [
+    "BinaryOpMixin",
+    "UnaryOpMixin",
+    "unary_operator_sexpr",
+    "binary_operator_sexpr",
+    "flexible_operator_sexpr",
+]
+
 
 class BinaryOpMixin(ExprNode):
     """

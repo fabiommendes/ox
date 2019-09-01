@@ -354,8 +354,8 @@ for a complete list, but let us investigate a few that may be relevant for us no
 In order to complete our calculator, we need to inspect the free variables of the parsed
 expression tree. This is easily done:
 
->>> ast.free_vars()
-{'x', 'y'}
+>>> ast.free_vars() == {'x', 'y'}
+True
 
 Ox can also evaluate expressions whose values we can determine statically. This
 is called "constant propagation" in compilers terminology and it is implemented

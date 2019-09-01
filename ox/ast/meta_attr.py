@@ -71,11 +71,7 @@ class Meta:
         expression. Wrapper roles are often declared on expression classes that
         represent the given role.
         """
-        result = {} if self.is_root else self.root_meta.wrapper_roles
-        for role in ["getattr", "getitem", "fcall"]:
-            if hasattr(self.type, "_meta_" + role):
-                result[role] = getattr(self.type, "_meta_" + role)
-        return result
+        return {} if self.is_root else self.root_meta.wrapper_roles
 
     @lazy
     def sexpr_symbol_map(self):
@@ -152,7 +148,10 @@ class Meta:
         self.sexpr_symbol_map.update(sexpr_symbol_map or {})
         if sexpr_symbol:
             self.sexpr_symbol_map[sexpr_symbol] = sexpr(self, sexpr_symbol)
-        self.sexpr_symbol_map[sexpr_symbol] = sexpr(self)
+        self.sexpr_symbol_map[cls] = sexpr(self)
+
+        # Wrapper roles
+        self._populate_wrapper_roles()
 
     def _populate_subclass_tree(self):
         cls = self.type
@@ -163,6 +162,12 @@ class Meta:
                 meta.leaf_subclasses.add(cls)
             if self.is_node:
                 meta.node_subclasses.add(cls)
+
+    def _populate_wrapper_roles(self):
+        roles = self.wrapper_roles
+        for role in ["getattr", "getitem", "fcall"]:
+            if hasattr(self.type, "_meta_" + role):
+                roles[role] = getattr(self.type, "_meta_" + role)
 
     def __repr__(self):
         return f"Meta({self.type.__name__})"

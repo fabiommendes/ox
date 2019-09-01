@@ -1,12 +1,11 @@
-from typing import Union, Optional
+from typing import Union
 
-import ox.ast.ast_mixins
-import ox.ast.ast_operator_mixins
-from ox.ast import Tree
-from sidekick import curry
+from sidekick import curry, alias
 from .operators import UnaryOp as UnaryOpEnum, BinaryOp as BinaryOpEnum
+from .utils import ArgT
 from ... import ast
-from ...ast.utils import wrap_tokens, attr_property
+from ...ast import Tree
+from ...ast.utils import wrap_tokens
 
 PyAtom = (type(None), type(...), bool, int, float, complex, str, bytes)
 PyAtomT = Union[None, bool, int, float, complex, str, bytes]  # ..., NotImplemented
@@ -50,7 +49,7 @@ register_expr = curry(2, expr.register)
 # ==============================================================================
 
 
-class Atom(ExprLeaf, ox.ast.ast_mixins.AtomMixin):
+class Atom(ExprLeaf, ast.AtomMixin):
     """
     Atomic data such as numbers, strings, etc.
 
@@ -69,7 +68,7 @@ class Atom(ExprLeaf, ox.ast.ast_mixins.AtomMixin):
         yield "..." if self.value is ... else repr(self.value)
 
 
-class Name(ExprLeaf, ox.ast.ast_mixins.NameMixin):
+class Name(ExprLeaf, ast.NameMixin):
     """
     Represent a Python name
     """
@@ -107,7 +106,7 @@ class Or(ExprNode):
         sexpr_symbol = "or"
 
 
-class UnaryOp(ExprNode, ox.ast.ast_operator_mixins.UnaryOpMixin):
+class UnaryOp(ExprNode, ast.UnaryOpMixin):
     """
     Unary operators like +, -, ~ and not.
     """
@@ -123,7 +122,7 @@ class UnaryOp(ExprNode, ox.ast.ast_operator_mixins.UnaryOpMixin):
         yield from self.expr.tokens(ctx)
 
 
-class BinOp(ExprNode, ox.ast.ast_operator_mixins.BinaryOpMixin):
+class BinOp(ExprNode, ast.BinaryOpMixin):
     """
     Regular binary operators like for arithmetic and bitwise arithmetic
     operations. It excludes comparisons and bitwise operations since they are
@@ -152,7 +151,7 @@ class BinOp(ExprNode, ox.ast.ast_operator_mixins.BinaryOpMixin):
         yield from wrap_tokens(self.rhs.tokens(ctx), wrap=wrap)
 
 
-class GetAttr(ExprNode, ox.ast.ast_mixins.GetAttrMixin):
+class GetAttr(ExprNode, ast.GetAttrMixin):
     """
     Get attribute expression.
     """
@@ -191,15 +190,15 @@ class Call(ExprNode):
         for arg in args:
             if isinstance(arg, str):
                 if arg.startswith("**"):
-                    yield Arg(Name(arg[2:]), name=None, stars=2)
+                    yield Arg(ArgT.DoubleStar, Name(arg[2:]))
                 elif arg.startswith("*"):
-                    yield Arg(Name(arg[1:]), name=None, stars=1)
+                    yield Arg(ArgT.Star, Name(arg[1:]))
                 else:
                     raise ValueError(f"invalid argument specification {arg!r}")
             else:
                 yield arg
         for name, value in kwargs.items():
-            yield Arg(value, name=name, stars=0)
+            yield Arg(ArgT.Named(name), value)
 
     @classmethod
     def from_args(*args, **kwargs):
@@ -244,17 +243,24 @@ class Arg(ExprNode):
     Represents an argument in a function call.
     """
 
+    tag: ArgT
     expr: Expr
-    name: Optional[str] = attr_property("name")
-    stars: int = attr_property("stars")
+    kind = alias("tag")
 
     def tokens(self, ctx):
-        if self.name:
-            yield self.name
+        kind = self.kind
+        if kind.is_simple:
+            yield from self.expr.tokens(ctx)
+        elif kind.is_star:
+            yield "*"
+            yield from self.expr.tokens(ctx)
+        elif kind.is_double_star:
+            yield "**"
+            yield from self.expr.tokens(ctx)
+        else:
+            yield kind.name
             yield "="
-        elif self.stars:
-            yield "*" * self.stars
-        yield from self.expr.tokens(ctx)
+            yield from self.expr.tokens(ctx)
 
 
 class Yield(ExprNode):
@@ -263,7 +269,6 @@ class Yield(ExprNode):
     """
 
     expr: Expr
-    _command = "yield"
 
     def tokens(self, ctx):
         yield "("
