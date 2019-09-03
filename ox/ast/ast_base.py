@@ -126,7 +126,7 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
         """
         Create new AST node from statically known values for children.
         """
-        raise NotImplementedError
+        raise TypeError("cannot be created from static children values.")
 
 
 class Node(AST, NodeBase):

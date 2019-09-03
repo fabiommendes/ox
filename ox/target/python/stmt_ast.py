@@ -6,7 +6,16 @@ from .utils import Loop as LoopAction
 from ... import ast
 from ...ast import Stmt as StmtBase
 
-__all__ = ["Stmt", "StmtLeaf", "StmtNode", "stmt", "register_stmt", "Return"]
+__all__ = [
+    "Stmt",
+    "StmtLeaf",
+    "StmtNode",
+    "stmt",
+    "register_stmt",
+    "Return",
+    "Function",
+    "Block",
+]
 
 
 class Stmt(StmtBase):

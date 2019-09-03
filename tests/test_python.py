@@ -4,9 +4,23 @@ from hypothesis import given
 # from ox.target.python import List, Tuple, Set, Dict,
 from ox.ast import Tree
 from ox.hypothesis import py_value
-from ox.target.python import Expr, Stmt, Atom, BinOp, Name, GetAttr, Call, Return, S
-from ox.target.python import expr, py, unwrap
-from ox.target.python.stmt_ast import Function, Block
+from ox.target.python import (
+    Expr,
+    Stmt,
+    Atom,
+    BinOp,
+    Name,
+    GetAttr,
+    Call,
+    Return,
+    S,
+    And,
+    Or,
+    Ternary,
+    Function,
+    Block,
+)
+from ox.target.python import to_expr, py, unwrap
 
 src = lambda x: unwrap(x).source()
 
@@ -33,38 +47,63 @@ class TestMetaClass:
 
 
 class TestExprAstNodeConstruction:
-    def test_atomic_node_equality(self):
-        assert expr(1) == Atom(1)
+    def test_equality(self):
+        # Leaves
+        assert to_expr(1) == Atom(1)
         assert Name("x") == Name("x")
         assert Name("x") != Name("y")
         assert Name("x").parent is None
 
-    def test_atomic_node_repr(self):
+    def test_repr(self):
+        # Leaves
         assert repr(Atom(1)) == "Atom(1)"
         assert repr(Name("x")) == "Name('x')"
 
-    def test_atomic_node_source(self):
+        # Operators
+        assert (
+            repr(BinOp("+", Name("x"), Name("y")))
+            == "BinOp(Op.ADD, Name('x'), Name('y'))"
+        )
+
+    def test_source(self):
+        # Leaves
         assert Atom(1).source() == "1"
         assert Name("x").source() == "x"
 
-    def test_simple_expr_create(self):
+        # Containers and comprehensions
+
+        # Operators
+        assert BinOp("+", Name("x"), Atom(1)).source() == "x + 1"
+        assert (
+            BinOp(
+                "*", BinOp("+", Name("x"), Atom(1)), BinOp("*", Name("y"), Atom(2))
+            ).source()
+            == "(x + 1) * y * 2"
+        )
+        assert And(Name("x"), Name("y")).source() == "x and y"
+        assert Or(Name("x"), Name("y")).source() == "x or y"
+
+        # Getters
+        assert GetAttr(Name("x"), "y").source() == "x.y"
+        assert GetAttr(Atom(42), "y").source() == "(42).y"
+
+        # Function call and others
+        assert (
+            Call.from_args(Name("fn"), Name("x"), y=Atom(42)).source() == "fn(x, y=42)"
+        )
+        assert (
+            Ternary(Name("cond"), Name("x"), Name("y")).source() == "x if cond else y"
+        )
+
+    def test_binary_operators(self):
         expr = BinOp("+", Name("x"), Name("y"))
         assert expr.tag == expr.op == expr.operators.ADD
         assert expr.lhs == Name("x")
         assert expr.rhs == Name("y")
-        assert repr(expr) == "BinOp(Op.ADD, Name('x'), Name('y'))"
         assert expr.source() == "x + y"
-
-    def test_simple_expr_children(self):
-        expr = BinOp("+", Name("x"), Name("y"))
-        assert len(expr._children) == 2
-        assert expr._children is expr.children
+        assert len(expr.children) == 2
         assert expr.children == [Name("x"), Name("y")]
-
-    def test_simple_expr_compare(self):
-        expr1 = BinOp("+", Name("x"), Name("y"))
-        expr2 = BinOp("+", Name("x"), Name("y"))
-        assert expr1 == expr2
+        assert expr == BinOp("+", Name("x"), Name("y"))
 
     def test_getattr_constructor(self):
         e = GetAttr(Name("x"), "foo")
@@ -124,9 +163,6 @@ class TestWrapperObject:
 
     def test_function_creation(self):
         fn = unwrap(py("def", py.func, [py.x], [py("return", (2 * py.x) + 1)]))
-        print(fn.name)
-        print(fn.args)
-        print(fn.body)
         assert fn.source() == "def func(x):\n    return 2 * x + 1\n"
         assert fn.name.value == "func"
         assert isinstance(fn.args, Tree)
@@ -143,7 +179,7 @@ class TestUtilities:
 class _TestHypothesis:
     @given(py_value())
     def test_representation_of_atoms(self, value):
-        assert repr(value) == expr(value).source()
+        assert repr(value) == to_expr(value).source()
 
 
 # class TestExprHelpers:

@@ -14,7 +14,7 @@ __all__ = [
     "Expr",
     "ExprLeaf",
     "ExprNode",
-    "expr",
+    "to_expr",
     "register_expr",
     "Atom",
     "Name",
@@ -24,6 +24,10 @@ __all__ = [
     "UnaryOp",
     "GetAttr",
     "Call",
+    "Ternary",
+    "Call",
+    "Lambda",
+    "ArgDef",
     "Yield",
     "YieldFrom",
 ]
@@ -37,6 +41,23 @@ class Expr(ast.Expr):
     class Meta:
         root = True
         abstract = True
+
+    def attr(self, attr: str) -> "Expr":
+        return GetAttr(self, attr)
+
+    def index(self, value) -> "Expr":
+        return ...  # TODO
+
+    def binary_op(self, op, other: "Expr") -> "Expr":
+        op = BinaryOpEnum.from_name(op)
+        return BinOp(op, self, other)
+
+    def unary_op(self, op) -> "Expr":
+        op = UnaryOpEnum.from_name(op)
+        return UnaryOp(op, self)
+
+    def comparison_op(self, op, other, *args) -> "ExprNode":
+        return ...  # TODO
 
 
 class ExprLeaf(ast.ExprLeaf, Expr):
@@ -65,9 +86,27 @@ class Void(ast.VoidMixin, Expr):
     node.
     """
 
+    def attr(self, attr: str) -> Expr:
+        raise TypeError("invalid operation with void node: getattr")
 
-expr = Expr._meta.coerce
-register_expr = curry(2, expr.register)
+    def index(self, value) -> Expr:
+        raise TypeError("invalid operation with void node: getindex")
+
+    def binary_op(self, op, other) -> Expr:
+        raise TypeError("invalid operation with void node: binary operator")
+
+    def unary_op(self, op) -> Expr:
+        raise TypeError("invalid operation with void node: unary operator")
+
+    def comparison_op(self, op, other, *args) -> Expr:
+        raise TypeError("invalid operation with void node: comparison operator")
+
+    def from_static_children(self):
+        return Void()
+
+
+to_expr = Expr._meta.coerce
+register_expr = curry(2, to_expr.register)
 
 
 # ==============================================================================
@@ -86,6 +125,11 @@ class Atom(ast.AtomMixin, ExprLeaf):
     class Meta:
         types = PyAtom
 
+    def from_static_children(self, value):
+        if isinstance(value, PyAtom):
+            return Atom(value, **self._attrs)
+        raise TypeError
+
     def _repr_as_child(self):
         return self._repr()
 
@@ -101,6 +145,9 @@ class Name(ast.NameMixin, ExprLeaf):
 
     class Meta:
         types = (str,)
+
+    def from_static_children(self, value):
+        return to_expr(value)
 
 
 # ==============================================================================
@@ -121,7 +168,7 @@ class And(ast.BinaryMixin, ExprNode):
         command = "{lhs} and {rhs}"
 
     def from_static_children(self, lhs, rhs):
-        return expr(lhs and rhs)
+        return to_expr(lhs and rhs)
 
 
 class Or(ast.BinaryMixin, ExprNode):
@@ -137,7 +184,7 @@ class Or(ast.BinaryMixin, ExprNode):
         command = "{lhs} or {rhs}"
 
     def from_static_children(self, lhs, rhs):
-        return expr(lhs or rhs)
+        return to_expr(lhs or rhs)
 
 
 class UnaryOp(ast.UnaryOpMixin, ExprNode):
@@ -156,7 +203,7 @@ class UnaryOp(ast.UnaryOpMixin, ExprNode):
         yield from self.expr.tokens(ctx)
 
     def from_static_children(self, child):
-        return expr(self.tag.function(child))
+        return to_expr(self.tag.function(child))
 
 
 class BinOp(ast.BinaryOpMixin, ExprNode):
@@ -174,7 +221,7 @@ class BinOp(ast.BinaryOpMixin, ExprNode):
         sexpr_unary_op_class = UnaryOp
 
     def from_static_children(self, lhs, rhs):
-        return expr(self.tag.function(lhs, rhs))
+        return to_expr(self.tag.function(lhs, rhs))
 
     def wrap_child_tokens(self, child, role):
         if isinstance(child, BinOp):
@@ -234,10 +281,10 @@ class GetAttr(ast.GetAttrMixin, ExprNode):
     attr: str
 
     def wrap_child_tokens(self, child, role):
-        expr = self.expr
-        if isinstance(expr, (BinOp, UnaryOp, And, Or)):
+        value = self.expr
+        if isinstance(value, (BinOp, UnaryOp, And, Or)):
             return True
-        if isinstance(expr, Atom) and isinstance(expr.value, (int, float, complex)):
+        if isinstance(value, Atom) and isinstance(value.value, (int, float, complex)):
             return True
         return False
 
@@ -250,6 +297,7 @@ class Call(ExprNode):
     expr: Expr
     args: Tree
 
+    # noinspection PyMethodParameters
     @classmethod
     def from_args(*args, **kwargs):
         """
@@ -259,8 +307,8 @@ class Call(ExprNode):
         This is the same as creating a node with empty arguments, then adding
         values using the add_args() method.
         """
-        cls, expr, *args = args
-        return cls(expr, Tree("args", list(generate_args(*args, **kwargs))))
+        cls, e, *args = args
+        return cls(e, Tree("args", list(generate_args(*args, **kwargs))))
 
     _meta_fcall = from_args
 
@@ -290,10 +338,10 @@ class Call(ExprNode):
         return args
 
     def tokens(self, ctx):
-        expr = self.expr
-        if isinstance(expr, (BinOp, UnaryOp, And, Or)):
+        e = self.expr
+        if isinstance(e, (BinOp, UnaryOp, And, Or)):
             yield from wrap_tokens(self.expr.tokens(ctx))
-        elif isinstance(expr, Atom) and isinstance(expr.value, (int, float, complex)):
+        elif isinstance(e, Atom) and isinstance(e.value, (int, float, complex)):
             yield from wrap_tokens(self.expr.tokens(ctx))
         else:
             yield from self.expr.tokens(ctx)
@@ -409,3 +457,21 @@ class ArgDef(ExprNode):
         ):
             return self.name == other
         return super().__eq__(other)
+
+
+class Ternary(ExprNode):
+    """
+    Ternary operator (<then> if <cond> else <other>)
+    """
+
+    cond: Expr
+    then: Expr
+    other: Expr
+
+    def tokens(self, ctx):
+        cond, then, other = self.cond, self.then, self.other
+        yield from wrap_tokens(then.tokens(ctx), wrap=isinstance(then, Ternary))
+        yield " if "
+        yield from wrap_tokens(cond.tokens(ctx), wrap=isinstance(cond, Ternary))
+        yield " else "
+        yield from other.tokens(ctx)
