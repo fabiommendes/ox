@@ -677,8 +677,11 @@ class Tuple(Container):
     class Meta:
         brackets = "()"
 
-    def tokens(self, ctx):
-        if len(self.children) == 1:
+    def tokens(self, ctx, mode="std"):
+        if mode == "expr-list" or mode == "no-paren" and len(self.children) > 1:
+            children = map(lambda x: x.tokens(ctx), self._children)
+            yield from intersperse(", ", children)
+        elif len(self.children) == 1:
             yield "("
             yield from self.children[0].tokens(ctx)
             yield ",)"

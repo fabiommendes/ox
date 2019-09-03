@@ -27,8 +27,10 @@ from ox.target.python import (
     List,
     Set,
     Dict,
+    Del,
 )
 from ox.target.python import to_expr, py, unwrap
+from ox.target.python.stmt_ast import Cmd
 
 src = lambda x: unwrap(x).source()
 
@@ -144,7 +146,13 @@ class TestExprAstNodeConstruction:
 
 
 class TestStmtNodesConstruction:
-    def test_fn_def(self):
+    def test_source(self):
+        # Simple statements
+        assert Return(Name("x")).source() == "return x"
+        assert Del(Name("x")).source() == "del x"
+        assert Cmd.Break().source() == "break"
+        assert Cmd.Continue().source() == "continue"
+
         fn = Function(Name("fn"), Tree("args", [Name("x")]), Block([Return(Name("x"))]))
         assert fn.source() == "def fn(x):\n    return x\n"
 

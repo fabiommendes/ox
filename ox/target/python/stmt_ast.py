@@ -1,7 +1,7 @@
 from ox.ast import Tree
 from ox.ast.utils import intersperse
 from sidekick import curry
-from .expr_ast import Expr, Name, Void, ArgDef, Starred
+from .expr_ast import Expr, Name, Void, ArgDef, Starred, Tuple
 from .utils import Loop as LoopAction
 from ... import ast
 from ...ast import Stmt as StmtBase
@@ -15,6 +15,7 @@ __all__ = [
     "Return",
     "Function",
     "Block",
+    "Del",
 ]
 
 
@@ -69,7 +70,7 @@ class Return(ast.StmtExprMixin, StmtNode):
         return {"return": cls}
 
 
-class Loop(StmtLeaf):
+class Cmd(StmtLeaf):
     """
     A return statement (return <expr>)
     """
@@ -139,7 +140,7 @@ class Function(StmtNode):
 
         return {"def": function}
 
-    def __init__(self, name, args, body, annotation=None, **kwargs):
+    def __init__(self, name: Name, args: Tree, body: Block, annotation=None, **kwargs):
         annotation = Void() if annotation is None else annotation
         super().__init__(name, args, body, annotation, **kwargs)
 
@@ -153,3 +154,32 @@ class Function(StmtNode):
             yield " -> "
             yield from self.annotation.tokens(ctx)
         yield from self.body.tokens_as_block(ctx)
+
+
+class Del(StmtNode):
+    """
+    Del statement (e.g., del <value>).
+    """
+
+    expr: Expr
+
+    class Meta:
+        command = "del {expr}"
+        sexpr_symbol = "del"
+
+    @classmethod
+    def _meta_sexpr_symbol_map(cls) -> dict:
+        def del_statement(expr, *args, **kwargs):
+            if args:
+                expr = Tuple([expr, *args])
+            return cls(expr, **kwargs)
+
+        return {"del": del_statement}
+
+    def tokens(self, ctx):
+        if isinstance(self.expr, Tuple) and self.expr.children:
+            yield ctx.start_line()
+            yield "del "
+            yield from self.expr.tokens(ctx, mode="expr-list")
+        else:
+            yield from super().tokens(ctx)
