@@ -26,6 +26,7 @@ from ox.target.python import (
     Tuple,
     List,
     Set,
+    Dict,
 )
 from ox.target.python import to_expr, py, unwrap
 
@@ -84,6 +85,7 @@ class TestExprAstNodeConstruction:
         assert Tuple([]).source() == "()"
         assert Set([Atom(1), Atom(2)]).source() == "{1, 2}"
         assert Set([]).source() == "set()"
+        assert Dict([Atom(1), Atom(2)]).source() == "{1: 2}"
 
         # Operators
         assert BinOp("+", Name("x"), Atom(1)).source() == "x + 1"

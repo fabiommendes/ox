@@ -37,6 +37,7 @@ __all__ = [
     "Tuple",
     "List",
     "Set",
+    "Dict",
 ]
 
 
@@ -707,3 +708,34 @@ class Set(Container):
             yield "set()"
         else:
             yield from super().tokens(ctx)
+
+
+class Dict(Container):
+    """
+    Dictionary literal.
+    """
+
+    class Meta:
+        brackets = "{}"
+
+    @classmethod
+    def from_items(cls, pairs, **kwargs):
+        """
+        Create dictionary from list of pairs.
+        """
+        items = []
+        for k, v in pairs:
+            items.append(k)
+            items.append(v)
+        return cls(items, **kwargs)
+
+    def tokens(self, ctx):
+        children = iter(self._children)
+        yield "{"
+        for idx, k in enumerate(children):
+            if idx:
+                yield ", "
+            yield from k.tokens(ctx)
+            yield ": "
+            yield from next(children).tokens(ctx)
+        yield "}"

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Union, Sequence
 
 
 class NotImplementedDescriptor:
@@ -19,7 +20,7 @@ class NotImplementedDescriptor:
         self.name = name
 
 
-def wrap_tokens(it, wrap=True):
+def wrap_tokens(it, wrap: Union[bool, Sequence[str]] = True):
     """
     Wrap iterable with two parenthesis tokens.
 
@@ -94,7 +95,7 @@ def intersperse(sep, generators):
     """
     Intersperse tokens generated from all generators by the given separator.
 
-    >>> seq = intersperse(', ', 'a+b', 'c+d')
+    >>> seq = intersperse(', ', ['a+b', 'c+d'])
     >>> ''.join(seq)
     'a+b, c+d'
     """
