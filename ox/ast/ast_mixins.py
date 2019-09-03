@@ -1,14 +1,16 @@
-from sidekick import Just, Maybe
-from .ast_core import ExprLeaf, ExprNode, Expr, StmtNode
+from sidekick import Just, Maybe, Node
+from .ast_core import ExprLeaf, ExprNode, Expr, StmtNode, Stmt
 from .utils import attr_property, from_template
 
 __all__ = [
     "NameMixin",
     "AtomMixin",
+    "VoidMixin",
     "CommandMixin",
     "BinaryMixin",
     "GetAttrMixin",
     "StmtExprMixin",
+    "BlockMixin",
 ]
 
 
@@ -22,6 +24,11 @@ class NameMixin(ExprLeaf):
     class Meta:
         abstract = True
         validate_name = None
+
+    def __init__(self, value, **kwargs):
+        if isinstance(value, NameMixin):
+            value = value.value
+        super().__init__(value, **kwargs)
 
     def tokens(self, ctx):
         yield self.value
@@ -52,7 +59,6 @@ class AtomMixin(ExprLeaf):
 
     class Meta:
         abstract = True
-        source = str
         types = ()
 
     @classmethod
@@ -66,7 +72,30 @@ class AtomMixin(ExprLeaf):
         return Just(self.value)
 
     def tokens(self, ctx):
-        yield self._meta.source(self.value)
+        yield str(self.value)
+
+
+class VoidMixin(ExprLeaf):
+    """
+    Represents an empty node.
+
+    This might be useful to use in places that may require optional nodes.
+    """
+
+    class Meta:
+        abstract = False
+
+    def __init__(self, **kwargs):
+        super().__init__(None, **kwargs)
+
+    def __bool__(self):
+        return False
+
+    def tokens(self, ctx):
+        yield from ()
+
+    def copy(self):
+        return type(self)(**self._attrs)
 
 
 class CommandMixin(ExprNode):
@@ -133,3 +162,56 @@ class StmtExprMixin(StmtNode):
     class Meta:
         abstract = True
         command = "{expr}"
+
+    def tokens(self, ctx):
+        expr = self.child_tokens(self.expr, "expr", ctx)
+        yield ctx.start_line()
+        yield from from_template(self._meta.command, {"expr": expr})
+
+
+class BlockMixin(Node, Stmt):
+    """
+    A block of sequential statements.
+    """
+
+    class Meta:
+        abstract = True
+        line_end = ""
+        block_separators = ["", ""]
+
+    def tokens(self, ctx):
+        children = iter(self.children)
+        line_end = self._meta.line_end
+
+        try:
+            first = next(children)
+            yield from first.tokens(ctx)
+            yield line_end
+        except StopIteration:
+            yield from self.tokens_empty_block(ctx)
+        for child in children:
+            yield "\n"
+            yield from child.tokens(ctx)
+            yield line_end
+
+    def tokens_empty_block(self, ctx):
+        """
+        Yield tokens if block is empty.
+        """
+        yield from ()
+
+    def tokens_as_block(self, ctx):
+        """
+        Return tokens rendering children as an indented block of statements.
+
+        Respect language block syntax conventions (e.g.,  Python uses semi-colon
+        followed by indentation, while C-family uses braces and indentation).
+        """
+        start, end = self._meta.separators
+        yield start
+        yield "\n"
+        ctx.indent()
+        yield from self.tokens(ctx)
+        ctx.dedent()
+        yield end
+        yield "\n"

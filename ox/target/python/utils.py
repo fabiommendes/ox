@@ -1,24 +1,6 @@
 from enum import Enum
 from keyword import kwlist as PYTHON_KEYWORDS
 
-from sidekick.types import Union, Case
-
-
-class ArgT(Union):
-    """
-    Tagged union that describes the tree possible states of a function argument:
-
-    * Simple: expression is passed as a regular positional argument (e.g., f(x))
-    * Star: variadic argument expansion (e.g., f(*x))
-    * DoubleStar: keyword expansion (e.g., f(**x))
-    * Named: named argument (e.g., f(name=x))
-    """
-
-    Simple: Case()
-    Star: Case()
-    DoubleStar: Case()
-    Named: Case(name=str)
-
 
 class Loop(Enum):
     """

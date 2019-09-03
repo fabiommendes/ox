@@ -318,6 +318,8 @@ A function node is declared as a `def`` S-Expression with 3 arguments: the name
 the list of arguments, and the body as a list of statements.
 
 >>> py('def', py.func, [py.x], [py('return', (2 * py.x) + 1)])
+py['def func(x):',
+   '    return 2 * x + 1']
 
 It accepts more complicated declarations with keyword arguments, type annotations,
 variadic arguments, etc. We will not cover that for now, but we encourage you to
@@ -385,31 +387,33 @@ should we say "transpiler") from *Calculator* to *Python*.
 
 .. code-block:: python
 
-    def compile_ast(ast, function_name='calc'):
+    def compile_expr(src, function_name='calc'):
+        ast = parser(src)
         expr = unwrap(compile_expression(ast))
         expr = expr.simplify()
         args = sorted(expr.free_vars())
+        args = [py[x] for x in args]
         fn = py('def', function_name, args, [
             py('return', expr),
         ])
-        return fn.source()
+        return unwrap(fn).source()
 
-
-    def compile_calculator(expr, function_name='calc'):
-        return compile_ast(parser(expr), function_name=function_name)
 
 Now we can simply call "compile_calculator" to convert it from *Calculator*
 to Python:
 
->>> print(compile_ast('40 + 2 + x'))
+>>> print(compile_expr('40 + 2 + x'))
 def calc(x):
-    return 42 + x
+    return 42.0 + x
+<BLANKLINE>
 
 We can make it available into our own Python code running it with eval():
 
->>> expr = eval(compile_ast('40 + 2 + x'))
+>> ns = {}
+>>> exec(compile_expr('40 + 2 + x'), ns)
+>>> expr = ns['calc']
 >>> expr(x=1)
-43
+43.0
 
 
 What about the name?

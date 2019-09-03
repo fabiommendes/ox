@@ -1,7 +1,8 @@
+import itertools
 from .expr_ast import Name, Expr, PyAtom, Atom
 from .stmt_ast import Stmt
 from .utils import is_python_name
-from ...ast.wrapper import Wrapper, unwrap, wrap as _wrap
+from ...ast.wrapper import Wrapper, unwrap, unwrap_nested, wrap as _wrap
 
 wrap = lambda x: _wrap(x, Py)
 
@@ -15,7 +16,13 @@ class Py(Wrapper, roots=(Expr, Stmt)):
         ref = unwrap(self)
         if isinstance(ref, Atom):
             return f"py({ref.value!r})"
-        return f"py[{ref.source()!r}]"
+        src = ref.source().strip("\n")
+        if "\n" in src:
+            it = map(repr, src.split("\n"))
+            it = itertools.chain([next(it), *("   " + x for x in it)])
+            src = ",\n".join(it)
+            return f"py[{src}]"
+        return f"py[{src!r}]"
 
 
 class PyMagic:
@@ -24,8 +31,8 @@ class PyMagic:
     """
 
     def __call__(self, *args, **kwargs):
-        args = tuple(map(unwrap, args))
-        kwargs = {k: unwrap(v) for k, v in kwargs.items()}
+        args = tuple(map(unwrap_nested, args))
+        kwargs = {k: unwrap_nested(v) for k, v in kwargs.items()}
         return wrap(S(*args, **kwargs))
 
     def __getattr__(self, item):
@@ -49,7 +56,7 @@ def S(head, *args, parse=False, **kwargs):
     if not args and not kwargs:
         if isinstance(head, str):
             if parse:
-                raise NotImplementedError
+                raise NotImplementedError(head)
             return Atom(head)
         elif isinstance(head, PyAtom):
             return Atom(head)

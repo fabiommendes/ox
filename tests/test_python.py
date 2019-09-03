@@ -2,9 +2,11 @@ import pytest
 from hypothesis import given
 
 # from ox.target.python import List, Tuple, Set, Dict,
+from ox.ast import Tree
 from ox.hypothesis import py_value
-from ox.target.python import Expr, Stmt, Atom, BinOp, Name, GetAttr, Call, Return
+from ox.target.python import Expr, Stmt, Atom, BinOp, Name, GetAttr, Call, Return, S
 from ox.target.python import expr, py, unwrap
+from ox.target.python.stmt_ast import Function, Block
 
 src = lambda x: unwrap(x).source()
 
@@ -30,7 +32,7 @@ class TestMetaClass:
         assert {"return"}.issubset(sexpr.keys())
 
 
-class TestAstNodeConstruction:
+class TestExprAstNodeConstruction:
     def test_atomic_node_equality(self):
         assert expr(1) == Atom(1)
         assert Name("x") == Name("x")
@@ -83,6 +85,18 @@ class TestAstNodeConstruction:
     #     assert expr({1: 2}) == Dict([(Atom(1), Atom(2))])
 
 
+class TestStmtNodesConstruction:
+    def test_fn_def(self):
+        fn = Function(Name("fn"), Tree("args", [Name("x")]), Block([Return(Name("x"))]))
+        assert fn.source() == "def fn(x):\n    return x\n"
+
+
+class TestSExprConstructors:
+    def test_create_function(self):
+        e = S("def", Name("fn"), [Name("x")], [S("return", Name("x"))])
+        assert e.source() == "def fn(x):\n    return x\n"
+
+
 class TestWrapperObject:
     def test_expr_operators(self):
         a = py(1)
@@ -90,10 +104,14 @@ class TestWrapperObject:
         assert str(a + 1) == "py['1 + 1']"
         assert str(a + 2) == "py['1 + 2']"
         assert str(a + a + a) == "py['1 + 1 + 1']"
-        # assert str(a.foo) == "py['(1).foo']"
+        assert str(a.foo) == "py['(1).foo']"
+        # assert str(+a) == "py['+1']"
         # assert str(a(1)) == "py['(1)(1)']"
         # assert str(a[1]) == "py['(1)[1]']"
-        # assert str(+a) == "py['+1']"
+
+    def test_expr_reversed_operators(self):
+        a = py(1)
+        assert str(2 + a) == "py['2 + 1']"
 
     def test_wrapped_expressions(self):
         x = py.x
@@ -103,6 +121,16 @@ class TestWrapperObject:
         assert src(x.foo) == "x.foo"
         assert src(fn(x)) == "fn(x)"
         assert src((x + y).method()) == "(x + y).method()"
+
+    def test_function_creation(self):
+        fn = unwrap(py("def", py.func, [py.x], [py("return", (2 * py.x) + 1)]))
+        print(fn.name)
+        print(fn.args)
+        print(fn.body)
+        assert fn.source() == "def func(x):\n    return 2 * x + 1\n"
+        assert fn.name.value == "func"
+        assert isinstance(fn.args, Tree)
+        assert fn.args.children[0] == Name("x")
 
 
 class TestUtilities:

@@ -1,5 +1,7 @@
+from ox.ast import Tree
+from ox.ast.utils import intersperse
 from sidekick import curry
-from .expr_ast import Expr
+from .expr_ast import Expr, Name, Void, ArgDef, Starred
 from .utils import Loop as LoopAction
 from ... import ast
 from ...ast import Stmt as StmtBase
@@ -90,3 +92,55 @@ class Loop(StmtLeaf):
 
     def tokens(self, ctx):
         yield self.value.value
+
+
+class Block(ast.BlockMixin, Stmt):
+    """
+    Python block of statements.
+    """
+
+    class Meta:
+        separators = (":", "")
+
+
+class Function(StmtNode):
+    """
+    A function definition.
+    """
+
+    name: Name
+    args: Tree
+    body: Block
+    annotation: Expr
+
+    @classmethod
+    def _meta_sexpr_symbol_map(cls) -> dict:
+        def to_arg(expr):
+            if isinstance(expr, ArgDef):
+                return expr
+            elif isinstance(expr, (Name, Starred)):
+                return ArgDef(expr)
+            else:
+                cls_name = type(expr).__name__
+                raise TypeError(f"invalid argument type: {cls_name}")
+
+        def function(name, args, body):
+            fn = Function(Name(name), Tree("args", map(to_arg, args)), Block(body))
+            return fn
+
+        return {"def": function}
+
+    def __init__(self, name, args, body, annotation=None, **kwargs):
+        annotation = Void() if annotation is None else annotation
+        super().__init__(name, args, body, annotation, **kwargs)
+
+    def tokens(self, ctx):
+        yield "def "
+        yield from self.name.tokens(ctx)
+        yield "("
+        yield from intersperse(", ", map(lambda x: x.tokens(ctx), self.args.children))
+        yield ")"
+        if self.annotation:
+            yield " -> "
+            yield from self.annotation.tokens(ctx)
+        yield from self.body.tokens_as_block(ctx)

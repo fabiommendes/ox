@@ -1,11 +1,10 @@
-from typing import Union
+from typing import Union, Optional
 
-from sidekick import curry, alias
+from sidekick import curry
 from .operators import UnaryOp as UnaryOpEnum, BinaryOp as BinaryOpEnum
-from .utils import ArgT
 from ... import ast
 from ...ast import Tree
-from ...ast.utils import wrap_tokens
+from ...ast.utils import wrap_tokens, attr_property
 
 PyAtom = (type(None), type(...), bool, int, float, complex, str, bytes)
 PyAtomT = Union[None, bool, int, float, complex, str, bytes]  # ..., NotImplemented
@@ -40,7 +39,7 @@ class Expr(ast.Expr):
         abstract = True
 
 
-class ExprLeaf(Expr, ast.ExprLeaf):
+class ExprLeaf(ast.ExprLeaf, Expr):
     """
     Base class for Python Expression leaf nodes.
     """
@@ -49,13 +48,22 @@ class ExprLeaf(Expr, ast.ExprLeaf):
         abstract = True
 
 
-class ExprNode(Expr, ast.ExprNode):
+class ExprNode(ast.ExprNode, Expr):
     """
     Base class for Python Expression leaf nodes.
     """
 
     class Meta:
         abstract = True
+
+
+class Void(ast.VoidMixin, Expr):
+    """
+    Empty node.
+
+    Used to represent absence in places that require an optional expression
+    node.
+    """
 
 
 expr = Expr._meta.coerce
@@ -82,13 +90,13 @@ class Atom(ast.AtomMixin, ExprLeaf):
         return self._repr()
 
     def tokens(self, ctx):
-        # Ellipisis is repr'd as "Ellipisis"
+        # Ellipsis is repr'd as "Ellipsis"
         yield "..." if self.value is ... else repr(self.value)
 
 
 class Name(ast.NameMixin, ExprLeaf):
     """
-    Represent a Python name
+    A Python name
     """
 
     class Meta:
@@ -170,7 +178,7 @@ class BinOp(ast.BinaryOpMixin, ExprNode):
 
     def wrap_child_tokens(self, child, role):
         if isinstance(child, BinOp):
-            return self.precedence_level < child.precedence_level
+            return self.precedence_level > child.precedence_level
         elif isinstance(child, (UnaryOp, And, Or)):
             return True
         return False
@@ -179,6 +187,42 @@ class BinOp(ast.BinaryOpMixin, ExprNode):
         yield from self.child_tokens(self.lhs, "lhs", ctx)
         yield f" {self.op.value} "
         yield from self.child_tokens(self.rhs, "rhs", ctx)
+
+
+class Starred(ExprNode):
+    """
+    A starred or kw-starred element.
+
+    Can only be present as function arguments or list, set, tuples and dictionary
+    elements.
+    """
+
+    expr: Expr
+    kwstar: bool = False
+
+    def tokens(self, ctx):
+        wrap = isinstance(self.expr, (And, Or))
+        yield ("**" if self.kwstar else "*")
+        yield from wrap_tokens(self.expr.tokens(ctx), wrap)
+
+
+class Keyword(ExprNode):
+    """
+    A keyword argument.
+
+    Can only be present as a child of a function call node.
+    """
+
+    expr: Expr
+    name: str = attr_property("name")
+
+    def __init__(self, expr, name, **kwargs):
+        super().__init__(expr, name, **kwargs)
+
+    def tokens(self, ctx):
+        yield self.name
+        yield "="
+        yield from self.expr.tokens(ctx)
 
 
 class GetAttr(ast.GetAttrMixin, ExprNode):
@@ -207,42 +251,43 @@ class Call(ExprNode):
     args: Tree
 
     @classmethod
-    def make_args(*args, **kwargs):
-        """
-        Create args list from positional and keyword arguments.
-        """
-        cls, *args = args
-        children = list(cls._yield_args(args, kwargs))
-        return Tree("args", children)
-
-    @classmethod
-    def _yield_args(cls, args, kwargs):
-        for arg in args:
-            if isinstance(arg, str):
-                if arg.startswith("**"):
-                    yield Arg(ArgT.DoubleStar, Name(arg[2:]))
-                elif arg.startswith("*"):
-                    yield Arg(ArgT.Star, Name(arg[1:]))
-                else:
-                    raise ValueError(f"invalid argument specification {arg!r}")
-            else:
-                yield arg
-        for name, value in kwargs.items():
-            yield Arg(ArgT.Named(name), value)
-
-    @classmethod
     def from_args(*args, **kwargs):
+        """
+        Create element that represents a function call from positional and
+        keyword arguments passed to function.
+
+        This is the same as creating a node with empty arguments, then adding
+        values using the add_args() method.
+        """
         cls, expr, *args = args
-        args = cls.make_args(*args, **kwargs)
-        return cls(expr, args)
+        return cls(expr, Tree("args", list(generate_args(*args, **kwargs))))
 
     _meta_fcall = from_args
 
-    def wrap_arg(self, arg):
+    def add_args(*args, **kwargs):
         """
-        Return true if it must wrap argument in parenthesis.
+        Add argument(s) to argument tree. Return a list with new arguments.
+
+        This function accepts several different signatures:
+
+        call.add_args(expr):
+            Add a simple argument. Argument must be a valid Python
+            expression.
+        call.add_args('*', name_or_str):
+        call.add_args('*name'):
+            Like before, but adds a star argument.
+        call.add_args('**', name_or_str):
+        call.add_args('**name'):
+            Like before, but adds a double start (keyword expansion) argument.
+        call.add_args(name=value):
+            Add one or more keyword arguments.
+
+        Those signatures can be combined.
         """
-        return False
+        self, *args = args
+        args = list(generate_args(*args, **kwargs))
+        self.args.children.extend(args)
+        return args
 
     def tokens(self, ctx):
         expr = self.expr
@@ -268,34 +313,38 @@ class Call(ExprNode):
         yield ")"
 
 
-class Arg(ExprNode):
+def generate_args(*args, **kwargs):
     """
-    Represents an argument in a function call.
+    Yield arguments from a function call signature.
     """
+    has_keyword = False
+    msg = "cannot set positional argument after keyword argument"
 
-    tag: ArgT
-    expr: Expr
-    kind = alias("tag")
-
-    def tokens(self, ctx):
-        kind = self.kind
-        if kind.is_simple:
-            yield from self.expr.tokens(ctx)
-        elif kind.is_star:
-            yield "*"
-            yield from self.expr.tokens(ctx)
-        elif kind.is_double_star:
-            yield "**"
-            yield from self.expr.tokens(ctx)
+    args = iter(args)
+    for arg in args:
+        if isinstance(arg, str):
+            if arg.startswith("**"):
+                has_keyword = True
+                yield Starred(next(args) if arg == "**" else Name(arg[2:]), kwstar=True)
+            elif arg.startswith("*"):
+                if has_keyword:
+                    raise ValueError(msg)
+                yield Starred(next(args) if arg == "*" else Name(arg[1:]))
+            else:
+                raise TypeError("expect expression, got str")
         else:
-            yield kind.name
-            yield "="
-            yield from self.expr.tokens(ctx)
+            if not isinstance(arg, Expr):
+                cls_name = arg.__class__.__name__
+                raise TypeError(f"expect expression, got {cls_name}")
+            yield arg
+
+    for name, value in kwargs.items():
+        yield Keyword(value, name=name)
 
 
 class Yield(ast.CommandMixin, ExprNode):
     """
-    "yield" expression.
+    "yield <expr>" expression.
     """
 
     expr: Expr
@@ -306,10 +355,57 @@ class Yield(ast.CommandMixin, ExprNode):
 
 class YieldFrom(ast.CommandMixin, ExprNode):
     """
-    "yield from" Expression.
+    "yield from <expr>" expression.
     """
 
     expr: Expr
 
     class Meta:
         command = "(yield from {expr})"
+
+
+class Lambda(ExprNode):
+    """
+    Lambda function.
+    """
+
+    args: Tree
+    expr: Expr
+    vararg: Optional[str]
+    kwarg: bool
+
+
+class ArgDef(ExprNode):
+    """
+    Argument definition.
+    """
+
+    name: Expr
+    default: Expr
+    annotation: Expr
+
+    def __init__(self, name, default=None, annotation=None, **kwargs):
+        default = Void() if default is None else default
+        annotation = Void() if annotation is None else annotation
+        super().__init__(name, default, annotation, **kwargs)
+
+    def tokens(self, ctx):
+        yield from self.name.tokens(ctx)
+        if self.annotation:
+            yield ": "
+            yield from self.annotation.tokens(ctx)
+            if self.default:
+                yield " = "
+                yield from self.default.tokens(ctx)
+        if self.default:
+            yield "="
+            yield from self.default.tokens(ctx)
+
+    def __eq__(self, other):
+        if (
+            not isinstance(other, ArgDef)
+            and isinstance(self.default, Void)
+            and isinstance(self.annotation, Void)
+        ):
+            return self.name == other
+        return super().__eq__(other)

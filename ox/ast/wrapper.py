@@ -129,11 +129,9 @@ class WrapperMeta(type):
         from .ast_base import AST
 
         def bin_op(wrapped, other):
-            lhs: AST = unwrap(wrapped)
-            rhs = unwrap(other)
-            if isinstance(rhs, lhs._meta.root):
-                return cls(fn(op, rhs, lhs))
-            return NotImplemented
+            rhs: AST = unwrap(wrapped)
+            lhs = rhs._meta.coerce(unwrap(other))
+            return cls(fn(lhs, rhs))
 
         return bin_op
 
@@ -279,6 +277,29 @@ def unwrap(obj: Wrapper):
         if isinstance(wrapped, NodeOrLeaf) and wrapped.parent is None:
             return wrapped.copy()
         return wrapped
+    return obj
+
+
+def unwrap_nested(obj: Wrapper):
+    """
+    Remove ast from wrapper.
+
+    Non-wrapped objects are returned as-is, making this function idempotent.
+    """
+    fn = unwrap_nested
+    if isinstance(obj, Wrapper):
+        wrapped = obj._Wrapper__ref
+        if isinstance(wrapped, NodeOrLeaf) and wrapped.parent is None:
+            return wrapped.copy()
+        return wrapped
+    elif isinstance(obj, list):
+        return list(map(unwrap_nested, obj))
+    elif isinstance(obj, tuple):
+        return tuple(map(unwrap_nested, obj))
+    elif isinstance(obj, set):
+        return set(map(unwrap_nested, obj))
+    elif isinstance(obj, dict):
+        return {fn(k): fn(v) for k, v in obj.items()}
     return obj
 
 

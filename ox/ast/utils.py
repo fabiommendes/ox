@@ -88,3 +88,19 @@ def attr_property(name, default=None, readonly=False):
         self.attr[name] = value
 
     return prop
+
+
+def intersperse(sep, generators):
+    """
+    Intersperse tokens generated from all generators by the given separator.
+
+    >>> seq = intersperse(', ', 'a+b', 'c+d')
+    >>> ''.join(seq)
+    'a+b, c+d'
+    """
+    if generators:
+        first, *generators = generators
+        yield from first
+        for arg in generators:
+            yield sep
+            yield from arg
