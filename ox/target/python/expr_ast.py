@@ -23,6 +23,8 @@ __all__ = [
     "BinOp",
     "UnaryOp",
     "GetAttr",
+    "GetItem",
+    "Slice",
     "Call",
     "Ternary",
     "Call",
@@ -274,7 +276,7 @@ class Keyword(ExprNode):
 
 class GetAttr(ast.GetAttrMixin, ExprNode):
     """
-    Get attribute expression.
+    Get attribute expression (<expr>.<attr>).
     """
 
     expr: Expr
@@ -287,6 +289,55 @@ class GetAttr(ast.GetAttrMixin, ExprNode):
         if isinstance(value, Atom) and isinstance(value.value, (int, float, complex)):
             return True
         return False
+
+
+class GetItem(ExprNode):
+    """
+    Get item expression (<expr>[<index>])
+    """
+
+    expr: Expr
+    index: Expr
+
+    def tokens(self, ctx):
+        wrap = isinstance(self.expr, (BinOp, UnaryOp, And, Or))
+        yield from wrap_tokens(self.expr.tokens(ctx), wrap=wrap)
+        yield from wrap_tokens(self.index.tokens(ctx), "[]")
+
+
+class Slice(ExprNode):
+    """
+    Slice expression allowed inside GetItem indexes.
+    """
+
+    start: Expr
+    stop: Expr
+    step: Expr
+
+    def __init__(self, start=None, stop=None, step=None, **kwargs):
+        start = start or Atom(None)
+        stop = stop or Atom(None)
+        step = step or Atom(None)
+        super().__init__(start, stop, step, **kwargs)
+
+    def tokens(self, ctx):
+        is_none = lambda x: isinstance(x, Atom) and x.value is None
+        start = self.start
+        stop = self.stop
+        step = self.step
+
+        if is_none(start) and is_none(stop) and is_none(step):
+            yield ":"
+            return
+
+        if not is_none(start):
+            yield from start.tokens(ctx)
+        yield ":"
+        if not is_none(stop):
+            yield from stop.tokens(ctx)
+        yield ":"
+        if not is_none(step):
+            yield from step.tokens(ctx)
 
 
 class Call(ExprNode):

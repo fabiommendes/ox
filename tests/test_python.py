@@ -20,6 +20,8 @@ from ox.target.python import (
     Function,
     Block,
     Lambda,
+    GetItem,
+    Slice,
 )
 from ox.target.python import to_expr, py, unwrap
 
@@ -87,6 +89,8 @@ class TestExprAstNodeConstruction:
         # Getters
         assert GetAttr(Name("x"), "y").source() == "x.y"
         assert GetAttr(Atom(42), "y").source() == "(42).y"
+        assert GetItem(Name("x"), Name("i")).source() == "x[i]"
+        assert GetItem(Name("x"), Slice()).source() == "x[:]"
 
         # Function call and others
         assert (
