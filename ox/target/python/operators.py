@@ -5,7 +5,7 @@ from ... import operators as base
 
 class BinaryOp(base.BinaryOp):
     """
-    Represent an operator
+    Binary operator
     """
 
     # By inverse order of precedence
@@ -16,18 +16,6 @@ class BinaryOp(base.BinaryOp):
     # precedence of short-circuit operators
     OR_ = "or"
     AND_ = "and"
-
-    # Comparisons
-    EQ = "=="
-    NE = "!="
-    GT = ">"
-    GE = ">="
-    LT = "<"
-    LE = "<="
-    IS = "is"
-    IS_NOT = "is not"
-    IN = "in"
-    NOT_IN = "not in"
 
     # Bitwise
     OR = "|"
@@ -52,17 +40,6 @@ class BinaryOp(base.BinaryOp):
         return {
             cls.OR_: 1,
             cls.AND_: 2,
-            # Comparisons
-            cls.EQ: 3,
-            cls.NE: 3,
-            cls.GT: 3,
-            cls.GE: 3,
-            cls.LT: 3,
-            cls.LE: 3,
-            cls.IS: 3,
-            cls.IS_NOT: 3,
-            cls.IN: 3,
-            cls.NOT_IN: 3,
             # Bitwise
             cls.OR: 4,
             cls.XOR: 5,
@@ -87,17 +64,6 @@ class BinaryOp(base.BinaryOp):
         return {
             cls.OR_: lambda x, y: x or y,
             cls.AND_: lambda x, y: x and y,
-            # Comparisons
-            cls.EQ: op.eq,
-            cls.NE: op.ne,
-            cls.GT: op.gt,
-            cls.GE: op.ge,
-            cls.LT: op.lt,
-            cls.LE: op.le,
-            cls.IS: op.is_,
-            cls.IS_NOT: op.is_not,
-            cls.IN: lambda x, y: x in y,
-            cls.NOT_IN: lambda x, y: x not in y,
             # Bitwise
             cls.OR: lambda x, y: x | y,
             cls.XOR: op.xor,
@@ -120,6 +86,42 @@ class BinaryOp(base.BinaryOp):
     @classmethod
     def right_associative_set(cls):
         return {cls.POW, cls.OR_, cls.AND_}
+
+
+class ComparisonOp(base.BinaryOp):
+    """
+    Comparison operators.
+    """
+
+    EQ = "=="
+    NE = "!="
+    GT = ">"
+    GE = ">="
+    LT = "<"
+    LE = "<="
+    IS = "is"
+    IS_NOT = "is not"
+    IN = "in"
+    NOT_IN = "not in"
+
+    @property
+    def precedence_level(self):
+        return 3
+
+    @classmethod
+    def function_mapping(cls):
+        return {
+            cls.EQ: op.eq,
+            cls.NE: op.ne,
+            cls.GT: op.gt,
+            cls.GE: op.ge,
+            cls.LT: op.lt,
+            cls.LE: op.le,
+            cls.IS: op.is_,
+            cls.IS_NOT: op.is_not,
+            cls.IN: lambda x, y: x in y,
+            cls.NOT_IN: lambda x, y: x not in y,
+        }
 
 
 class UnaryOp(base.Op):

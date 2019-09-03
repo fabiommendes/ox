@@ -1,7 +1,7 @@
 from typing import Union
 
-from sidekick import curry
-from .operators import UnaryOp as UnaryOpEnum, BinaryOp as BinaryOpEnum
+from sidekick import curry, uncons, Node
+from .operators import UnaryOp as UnaryOpEnum, BinaryOp as BinaryOpEnum, ComparisonOp
 from ... import ast
 from ...ast import Tree
 from ...ast.utils import wrap_tokens, attr_property, intersperse
@@ -22,6 +22,7 @@ __all__ = [
     "Or",
     "BinOp",
     "UnaryOp",
+    "Compare",
     "GetAttr",
     "GetItem",
     "Slice",
@@ -236,6 +237,51 @@ class BinOp(ast.BinaryOpMixin, ExprNode):
         yield from self.child_tokens(self.lhs, "lhs", ctx)
         yield f" {self.op.value} "
         yield from self.child_tokens(self.rhs, "rhs", ctx)
+
+
+class Compare(ExprNode):
+    """
+    Chains of comparison operators.
+
+    It is necessary to distinguish Compare() from BinOp() since the first accept
+    arbitrary chains of comparison operations like (a < b < c).
+    """
+
+    __slots__ = ("_tag",)
+    precedence_level = 3
+
+    @property
+    def op_list(self):
+        if isinstance(self._tag, ComparisonOp):
+            return [self._tag] * (len(self._children) - 1)
+        return self._tag
+
+    def __init__(self, tag, children, **kwargs):
+        if isinstance(tag, str):
+            tag = ComparisonOp.from_name(tag)
+        if isinstance(tag, ComparisonOp):
+            pass
+        elif len(tag) != len(children) - 1:
+            raise ValueError(
+                "list of operators must be one element smaller than list " "of operands"
+            )
+        else:
+            tag = list(tag)
+        if len(children) < 2:
+            raise ValueError("must have at least 2 children")
+        self._tag = tag
+        Node.__init__(self, children, **kwargs)
+
+    def child_tokens(self, child, role, ctx):
+        wrap = isinstance(child, (And, Or))
+        yield from wrap_tokens(child.tokens(ctx), wrap)
+
+    def tokens(self, ctx):
+        first, rest = uncons(self.child_tokens(x, "child", ctx) for x in self._children)
+        yield from first
+        for op, item in zip(self.op_list, rest):
+            yield f" {op.value} "
+            yield from item
 
 
 class Starred(ExprNode):

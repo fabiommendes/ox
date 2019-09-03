@@ -22,6 +22,7 @@ from ox.target.python import (
     Lambda,
     GetItem,
     Slice,
+    Compare,
 )
 from ox.target.python import to_expr, py, unwrap
 
@@ -85,6 +86,7 @@ class TestExprAstNodeConstruction:
         )
         assert And(Name("x"), Name("y")).source() == "x and y"
         assert Or(Name("x"), Name("y")).source() == "x or y"
+        assert Compare(">", [Name("x"), Name("y")]).source() == "x > y"
 
         # Getters
         assert GetAttr(Name("x"), "y").source() == "x.y"
