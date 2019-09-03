@@ -33,6 +33,10 @@ __all__ = [
     "ArgDef",
     "Yield",
     "YieldFrom",
+    "Container",
+    "Tuple",
+    "List",
+    "Set",
 ]
 
 
@@ -263,7 +267,7 @@ class Compare(ExprNode):
             pass
         elif len(tag) != len(children) - 1:
             raise ValueError(
-                "list of operators must be one element smaller than list " "of operands"
+                "list of operators must be one element smaller than list of operands"
             )
         else:
             tag = list(tag)
@@ -517,6 +521,7 @@ class Lambda(ExprNode):
     args: Tree
     expr: Expr
 
+    # noinspection PyMethodParameters
     @classmethod
     def from_args(*args, **kwargs):
         """
@@ -637,3 +642,68 @@ class Ternary(ExprNode):
         yield from wrap_tokens(cond.tokens(ctx), wrap=isinstance(cond, Ternary))
         yield " else "
         yield from other.tokens(ctx)
+
+
+class Container(ExprNode):
+    """
+    Base class for linear container types.
+    """
+
+    class Meta:
+        abstract = True
+        separator = ", "
+        brackets = "", ""
+
+    is_empty = property(lambda self: len(self._children) == 0)
+
+    def __init__(self, children, **kwargs):
+        Node.__init__(self, children, **kwargs)
+
+    def tokens(self, ctx):
+        left, right = self._meta.brackets
+        sep = self._meta.separator
+        yield left
+        if self._children:
+            yield from intersperse(sep, (x.tokens(ctx) for x in self._children))
+        yield right
+
+
+class Tuple(Container):
+    """
+    Tuple literal.
+    """
+
+    class Meta:
+        brackets = "()"
+
+    def tokens(self, ctx):
+        if len(self.children) == 1:
+            yield "("
+            yield from self.children[0].tokens(ctx)
+            yield ",)"
+        else:
+            yield from super().tokens(ctx)
+
+
+class List(Container):
+    """
+    List literal.
+    """
+
+    class Meta:
+        brackets = "[]"
+
+
+class Set(Container):
+    """
+    Set literal.
+    """
+
+    class Meta:
+        brackets = "{}"
+
+    def tokens(self, ctx):
+        if self.is_empty:
+            yield "set()"
+        else:
+            yield from super().tokens(ctx)

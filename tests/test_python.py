@@ -23,6 +23,9 @@ from ox.target.python import (
     GetItem,
     Slice,
     Compare,
+    Tuple,
+    List,
+    Set,
 )
 from ox.target.python import to_expr, py, unwrap
 
@@ -75,6 +78,12 @@ class TestExprAstNodeConstruction:
         assert Name("x").source() == "x"
 
         # Containers and comprehensions
+        assert List([Atom(1), Atom(2)]).source() == "[1, 2]"
+        assert Tuple([Atom(1), Atom(2)]).source() == "(1, 2)"
+        assert Tuple([Atom(1)]).source() == "(1,)"
+        assert Tuple([]).source() == "()"
+        assert Set([Atom(1), Atom(2)]).source() == "{1, 2}"
+        assert Set([]).source() == "set()"
 
         # Operators
         assert BinOp("+", Name("x"), Atom(1)).source() == "x + 1"
