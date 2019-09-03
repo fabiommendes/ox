@@ -1,10 +1,10 @@
-from typing import Union, Optional
+from typing import Union
 
 from sidekick import curry
 from .operators import UnaryOp as UnaryOpEnum, BinaryOp as BinaryOpEnum
 from ... import ast
 from ...ast import Tree
-from ...ast.utils import wrap_tokens, attr_property
+from ...ast.utils import wrap_tokens, attr_property, intersperse
 
 PyAtom = (type(None), type(...), bool, int, float, complex, str, bytes)
 PyAtomT = Union[None, bool, int, float, complex, str, bytes]  # ..., NotImplemented
@@ -308,7 +308,7 @@ class Call(ExprNode):
         values using the add_args() method.
         """
         cls, e, *args = args
-        return cls(e, Tree("args", list(generate_args(*args, **kwargs))))
+        return cls(e, Tree("args", list(generate_call_args(*args, **kwargs))))
 
     _meta_fcall = from_args
 
@@ -333,7 +333,7 @@ class Call(ExprNode):
         Those signatures can be combined.
         """
         self, *args = args
-        args = list(generate_args(*args, **kwargs))
+        args = list(generate_call_args(*args, **kwargs))
         self.args.children.extend(args)
         return args
 
@@ -361,7 +361,7 @@ class Call(ExprNode):
         yield ")"
 
 
-def generate_args(*args, **kwargs):
+def generate_call_args(*args, **kwargs):
     """
     Yield arguments from a function call signature.
     """
@@ -419,8 +419,40 @@ class Lambda(ExprNode):
 
     args: Tree
     expr: Expr
-    vararg: Optional[str]
-    kwarg: bool
+
+    @classmethod
+    def from_args(*args, **kwargs):
+        """
+        Construct lambda expression from body, *args, **kwargs passed to this
+        function.
+        """
+        cls, expr, *args = args
+        return cls(Tree("args", generate_def_args(*args, **kwargs)), expr)
+
+    def tokens(self, ctx):
+        if self.args.children:
+            yield "lambda "
+            yield from intersperse(
+                ", ", map(lambda x: x.tokens(ctx), self.args.children)
+            )
+            yield ": "
+        else:
+            yield "lambda: "
+        yield from self.expr.tokens(ctx)
+
+
+def generate_def_args(*args, **kwargs):
+    """
+    Yield arguments from a function (lambda) definition signature.
+    """
+    args = iter(args)
+    for arg in args:
+        if arg in "**":
+            arg += next(args)
+        new = ArgDef.from_expression(arg)
+        yield new
+    for name, value in kwargs.items():
+        yield ArgDef(Name(name), default=value)
 
 
 class ArgDef(ExprNode):
@@ -428,9 +460,42 @@ class ArgDef(ExprNode):
     Argument definition.
     """
 
-    name: Expr
+    arg: Expr
     default: Expr
     annotation: Expr
+
+    @classmethod
+    def from_expression(cls, expr: Union[Expr, str]):
+        """
+        Initialize ArgDef from expression or string.
+        """
+        if isinstance(expr, str):
+            if expr.startswith("**"):
+                return ArgDef(Starred(Name(expr[2:]), kwstar=True))
+            elif expr.startswith("**"):
+                return ArgDef(Starred(Name(expr[1:])))
+            else:
+                return ArgDef(Name(expr))
+        elif isinstance(expr, ArgDef):
+            return expr
+        elif isinstance(expr, Name):
+            return ArgDef(expr)
+        elif isinstance(expr, Starred):
+            return ArgDef(expr)
+        elif isinstance(expr, Keyword):
+            return ArgDef(Name(expr.name), expr.expr.copy())
+        else:
+            cls_name = expr.__class__.__name__
+            raise TypeError(f"expect expression, got {cls_name}")
+
+    @property
+    def name(self):
+        if isinstance(self.arg, Name):
+            return self.arg.value
+        elif isinstance(self.arg, Starred):
+            return self.arg.expr.value
+        else:
+            raise RuntimeError("expression must be a name or starred argument")
 
     def __init__(self, name, default=None, annotation=None, **kwargs):
         default = Void() if default is None else default
@@ -438,7 +503,7 @@ class ArgDef(ExprNode):
         super().__init__(name, default, annotation, **kwargs)
 
     def tokens(self, ctx):
-        yield from self.name.tokens(ctx)
+        yield from self.arg.tokens(ctx)
         if self.annotation:
             yield ": "
             yield from self.annotation.tokens(ctx)
@@ -455,7 +520,7 @@ class ArgDef(ExprNode):
             and isinstance(self.default, Void)
             and isinstance(self.annotation, Void)
         ):
-            return self.name == other
+            return self.arg == other
         return super().__eq__(other)
 
 

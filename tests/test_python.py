@@ -19,6 +19,7 @@ from ox.target.python import (
     Ternary,
     Function,
     Block,
+    Lambda,
 )
 from ox.target.python import to_expr, py, unwrap
 
@@ -94,6 +95,7 @@ class TestExprAstNodeConstruction:
         assert (
             Ternary(Name("cond"), Name("x"), Name("y")).source() == "x if cond else y"
         )
+        assert Lambda.from_args(Name("x"), x=Atom(1)).source() == "lambda x=1: x"
 
     def test_binary_operators(self):
         expr = BinOp("+", Name("x"), Name("y"))
