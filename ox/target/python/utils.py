@@ -2,13 +2,14 @@ from enum import Enum
 from keyword import kwlist as PYTHON_KEYWORDS
 
 
-class Loop(Enum):
+class Cmd(Enum):
     """
     Loop commands enumeration (either break/continue)
     """
 
     BREAK = "break"
     CONTINUE = "continue"
+    PASS = "pass"
 
 
 def is_python_name(name: str) -> bool:
