@@ -5,18 +5,18 @@ Ox Tutorial
 This tutorial shows how to create a simple programming language from the ground
 up. Creating a new programming language is obviously an enormous task, so we will
 implement a simple functional language gradually, each time showcasing a new feature
-of Ox that may be helpful for other projects.
+of Ox that may be also helpful for other projects.
 
 The programming language in question was conceived in a Compilers course as an
 educational experiment and is called Cremilda. The original version was very minimalist,
 but we decided to extend it for the purpose of this tutorial. Although the main
 goal of Cremilda is to exercise Ox and be the ideal subject for this tutorial, it is
 actually an usable programming language that can be installed from pip and used in your
-Python projects alongside with Python code.
+Python projects alongside with your Python code.
 
 Cremilda is a dynamic functional language that borrows some of Python semantics
 (like the data types, operators, etc) and behaves very differently from Python
-in other areas (e.g., no exceptions) and may force us to implement some non-trivial
+in other areas (e.g., no exceptions). This force us to implement some non-trivial
 translations. The snippets bellow show Cremilda's syntax in some common
 programming examples:
 
@@ -60,8 +60,9 @@ literals.
         FLOAT={r'\d+\.\d+': float},
         NAME=r'(?!\d)[\w]+',
         CTRL=r'[-+*\/%=><!();]+',
-        _COMMENTS=r'#[^\n]*',
-        _WP='\s+',
+        COMMENTS=r'#[^\n]*',
+        WP='\s+',
+        ignore={'COMMENTS', 'WP'},
     )
 
 
@@ -132,7 +133,7 @@ The next step is to build the parser rules.
 start
   fndef
     even
-    args	x
+    args    x
     cond
       comparison
         binop
@@ -182,45 +183,45 @@ Interpreter
 
 .. code-block:: python
 
-	from collections import ChainMap
-	import operator as op
-
-	def eval(expr, ns):
-		if isinstance(expr, str):
-			return ns[expr]
-		elif not isinstance(expr, tuple):
-			return expr
-
-		head, *args = expr
-		if head == 'mod':
-			data, = args
-			v = None
-			for k, v in data.items():
-				ns[k] = data[k] = eval(v, ns)
-			return data
-
-		elif head == 'if':
-			cond, then, other = args
-			if eval(cond, ns):
-				return eval(then, ns)
-			else:
-				return eval(other, ns)
-
-		elif head == 'lambda':
-			names, body = args
-
-			def fn(*values):
-				args = dict(zip(names, values))
-				local_ns = ChainMap(args, ns)
-				return eval(body, local_ns)
-
-			return fn
-
-		else:
-			fn = ns[head]
-			return fn(*(eval(x, ns) for x in args))
-
-	ns = {'%': op.mod, '==': op.eq} # ...
+    from collections import ChainMap
+    import operator as op
+    
+    def eval(expr, ns):
+        if isinstance(expr, str):
+            return ns[expr]
+        elif not isinstance(expr, tuple):
+            return expr
+    
+        head, *args = expr
+        if head == 'mod':
+            data, = args
+            v = None
+            for k, v in data.items():
+                ns[k] = data[k] = eval(v, ns)
+            return data
+    
+        elif head == 'if':
+            cond, then, other = args
+            if eval(cond, ns):
+                return eval(then, ns)
+            else:
+                return eval(other, ns)
+    
+        elif head == 'lambda':
+            names, body = args
+    
+            def fn(*values):
+                args = dict(zip(names, values))
+                local_ns = ChainMap(args, ns)
+                return eval(body, local_ns)
+    
+            return fn
+    
+        else:
+            fn = ns[head]
+            return fn(*(eval(x, ns) for x in args))
+    
+    ns = {'%': op.mod, '==': op.eq} # ...
 
 
 >>> mod = eval(CremildaT().transform(ast), ns)
@@ -277,29 +278,29 @@ Compiling Cremilda
 
 
 .. code-block:: python
-	#from ox.backend.python import *
+    from ox.target.python import *
 
-	def to_python(expr):
-		if not isinstance(expr, tuple):
-			return e[expr]
+    def to_python(expr):
+        if not isinstance(expr, tuple):
+            return e[expr]
 
-		head, *args = expr
+        head, *args = expr
 
-		if head == 'mod':
-			data, = args
-			return let({k: to_python(v) for k, v in data.items()})
+        if head == 'mod':
+            data, = args
+            return let({k: to_python(v) for k, v in data.items()})
 
-		elif head == 'if':
-			return cond(*map(to_python, args))
+        elif head == 'if':
+            return cond(*map(to_python, args))
 
-		elif head == 'lambda':
-			names, body = args
-			return fn(*names)[to_python(body)]
+        elif head == 'lambda':
+            names, body = args
+            return fn(*names)[to_python(body)]
 
-		elif head in operators:
-			return binop(head, *map(to_python, args))
+        elif head in operators:
+            return binop(head, *map(to_python, args))
 
-		else:
-			return e[head](*map(to_python, args))
+        else:
+            return e[head](*map(to_python, args))
 
-// >>> to_python(even_ast)
+>>> to_python(even_ast)
