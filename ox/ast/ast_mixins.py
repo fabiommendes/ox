@@ -9,8 +9,10 @@ __all__ = [
     "CommandMixin",
     "BinaryMixin",
     "GetAttrMixin",
+    "GetItemMixin",
     "StmtExprMixin",
     "BlockMixin",
+    "BodyElseMixin",
 ]
 
 
@@ -149,6 +151,35 @@ class GetAttrMixin(ExprNode):
         )
 
 
+class GetItemMixin(ExprNode):
+    """
+    Item access (<expr>[<name>]).
+    """
+
+    expr: Expr
+    index: Expr
+
+    class Meta:
+        abstract = True
+        command = "{expr}[{index}]"
+
+    @classmethod
+    def _meta_getitem(cls, expr, item):
+        """
+        Implement constructor that creates a attribute access expression.
+        """
+        return cls(expr, item)
+
+    def tokens(self, ctx):
+        yield from from_template(
+            self._meta.command,
+            {
+                "expr": self.child_tokens(self.expr, "expr", ctx),
+                "index": self.child_tokens(self.index, "index", ctx),
+            },
+        )
+
+
 #
 # Statement mixins
 #
@@ -215,3 +246,18 @@ class BlockMixin(Node, Stmt):
         ctx.dedent()
         yield end
         yield "\n"
+
+
+class BodyElseMixin(StmtNode):
+    body: BlockMixin
+    other: BlockMixin
+
+    class Meta:
+        abstract = True
+
+    def tokens(self, ctx):
+        yield from self.body.tokens_as_block(ctx)
+        if len(self.other.children) != 0:
+            yield ctx.start_line()
+            yield "else"
+            yield from self.other.tokens_as_block(ctx)

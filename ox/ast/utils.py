@@ -67,7 +67,7 @@ def get_renderer(template):
 
     def renderer_fallback(ctx):
         data = {k: "".join(v) for k, v in ctx.items()}
-        return template.format(**data)
+        yield template.format(**data)
 
     return renderer_fallback
 

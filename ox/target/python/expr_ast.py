@@ -38,6 +38,9 @@ __all__ = [
     "List",
     "Set",
     "Dict",
+    "Starred",
+    "Keyword",
+    "As",
 ]
 
 
@@ -115,6 +118,16 @@ class Void(ast.VoidMixin, Expr):
 
 to_expr = Expr._meta.coerce
 register_expr = curry(2, to_expr.register)
+register_expr(list, lambda xs: List(map(to_expr, xs)))
+register_expr(set, lambda xs: Set(map(to_expr, xs)))
+register_expr(tuple, lambda xs: Tuple(map(to_expr, xs)))
+register_expr(dict, lambda d: Dict.from_dict(d))
+
+
+def to_expr_or_name(x):
+    if isinstance(x, str):
+        return Name(x)
+    return to_expr(x)
 
 
 # ==============================================================================
@@ -306,6 +319,20 @@ class Starred(ExprNode):
         yield from wrap_tokens(self.expr.tokens(ctx), wrap)
 
 
+class As(ExprNode):
+    """
+    Implements <expr> as <alias>
+    """
+
+    expr: Expr
+    alias: Expr
+
+    def tokens(self, ctx):
+        yield from self.expr.tokens(ctx)
+        yield " as "
+        yield from self.alias.tokens(ctx)
+
+
 class Keyword(ExprNode):
     """
     A keyword argument.
@@ -342,7 +369,7 @@ class GetAttr(ast.GetAttrMixin, ExprNode):
         return False
 
 
-class GetItem(ExprNode):
+class GetItem(ast.GetItemMixin, ExprNode):
     """
     Get item expression (<expr>[<index>])
     """
@@ -350,10 +377,10 @@ class GetItem(ExprNode):
     expr: Expr
     index: Expr
 
-    def tokens(self, ctx):
-        wrap = isinstance(self.expr, (BinOp, UnaryOp, And, Or))
-        yield from wrap_tokens(self.expr.tokens(ctx), wrap=wrap)
-        yield from wrap_tokens(self.index.tokens(ctx), "[]")
+    def wrap_child_tokens(self, child, role):
+        if role == "expr":
+            return isinstance(self.expr, (BinOp, UnaryOp, And, Or))
+        return False
 
 
 class Slice(ExprNode):
@@ -667,6 +694,18 @@ class Container(ExprNode):
         if self._children:
             yield from intersperse(sep, (x.tokens(ctx) for x in self._children))
         yield right
+
+    def _simplify_or_copy(self, recur):
+        meta = self._meta
+        new = object.__new__(type(self))
+        new._parent = None
+        new._attrs = self._attrs.copy()
+        new._children = [c.copy() for c in self._children]
+        if meta.has_tag_field:
+            new._tag = self._tag
+        for attr in meta.children_fields:
+            setattr(new, attr, recur(getattr(self, attr)))
+        return new
 
 
 class Tuple(Container):

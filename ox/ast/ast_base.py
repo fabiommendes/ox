@@ -93,7 +93,7 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
         """
         return False
 
-    def tokens(self, context):
+    def tokens(self, ctx: PrintContext):
         """
         Return an iterator over tokens for the output source code.
 
@@ -103,12 +103,14 @@ class AST(HasMetaMixin, NodeOrLeaf, metaclass=ASTMeta):
         Subclasses should override tokens_for_context instead of this method.
         """
         if self._meta.command:
-            ctx = {
-                f: self.child_tokens(getattr(self, f), f, context)
+            data = {
+                f: self.child_tokens(getattr(self, f), f, ctx)
                 for f in self._meta.children_fields
             }
-            return from_template(self._meta.command, ctx)
-        raise NotImplementedError("tokens() method must be implemented in subclass")
+            yield ctx.start_line()
+            yield from from_template(self._meta.command, data)
+        else:
+            raise NotImplementedError("tokens() method must be implemented in subclass")
 
     def print_context(self, **kwargs):
         """
