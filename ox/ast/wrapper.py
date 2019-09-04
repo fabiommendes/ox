@@ -237,6 +237,7 @@ class Wrapper(metaclass=WrapperMeta):
     __lt__ = NotImplementedDescriptor()
     __ge__ = NotImplementedDescriptor()
     __le__ = NotImplementedDescriptor()
+    __eq__ = NotImplementedDescriptor()
 
     # Bitwise operators
     __or__ = NotImplementedDescriptor()
@@ -259,6 +260,7 @@ class Wrapper(metaclass=WrapperMeta):
     __getitem__ = NotImplementedDescriptor()
     __getattr__ = NotImplementedDescriptor()
     __call__ = NotImplementedDescriptor()
+    __hash__ = lambda self: hash(self.__ref)
 
 
 #

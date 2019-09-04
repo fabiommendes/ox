@@ -175,6 +175,22 @@ class TestWrapperObject:
         # assert str(a(1)) == "py['(1)(1)']"
         # assert str(a[1]) == "py['(1)[1]']"
 
+    def test_containers(self):
+        xs = unwrap(py([1, 2, 3]))
+        assert len(xs.children) == 3
+        assert xs.children[0] == Atom(1)
+
+    def test_source(self):
+        src = lambda x: unwrap(x).source()
+
+        # Atoms
+        assert src(py(42)) == "42"
+        assert src(py(-42)) == "-42"
+
+        # Containers
+        assert src(py([])) == "[]"
+        assert src(py([42])) == "[42]"
+
     def test_expr_reversed_operators(self):
         a = py(1)
         assert str(2 + a) == "py['2 + 1']"

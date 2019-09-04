@@ -1,6 +1,8 @@
 import itertools
+
 from .expr_ast import Name, Expr, PyAtom, Atom
-from .stmt_ast import Stmt
+from .operators import Inplace as InplaceOpEnum
+from .stmt_ast import Stmt, Cmd, Block, Assign, Inplace
 from .utils import is_python_name
 from ...ast.wrapper import Wrapper, unwrap, unwrap_nested, wrap as _wrap
 
@@ -48,30 +50,69 @@ class PyMagic:
         raise TypeError(f"invalid index type: {cls}")
 
 
-def S(head, *args, parse=False, **kwargs):
-    """
-    Create a Python AST node using the S-Expression syntax.
-    """
-    # Single values
-    if not args and not kwargs:
-        if isinstance(head, str):
-            if parse:
-                raise NotImplementedError(head)
-            return Atom(head)
-        elif isinstance(head, PyAtom):
-            return Atom(head)
+class SMagic:
+    def __call__(*args, parse=False, **kwargs):
+        """
+        Create a Python AST node using the S-Expression syntax.
+        """
+        self, head, *args = args
 
-    # S-Expr constructors
-    try:
-        constructor = sexpr_map[head]
-        return constructor(*args, **kwargs)
-    except KeyError as exc:
-        if callable(head):
-            return head(*args, **kwargs)
-        raise ValueError(f"invalid S-Expr head: {head!r}") from exc
+        # Single values
+        if not args and not kwargs and not parse:
+            return self._wrap_simple(head)
+        elif parse:
+            raise NotImplementedError(head)
+
+        # S-Expr constructors
+        args = map(unwrap_nested, args)
+        kwargs = {k: unwrap_nested(v) for k, v in kwargs.items()}
+        try:
+            constructor = sexpr_map[head]
+            return constructor(*args, **kwargs)
+        except KeyError as exc:
+            if callable(head):
+                return head(*args, **kwargs)
+            raise ValueError(f"invalid S-Expr head: {head!r}") from exc
+
+    def _wrap_simple(self, obj):
+        if isinstance(obj, PyAtom):
+            return Atom(obj)
+        elif isinstance(obj, (list, tuple, dict, set)):
+            return to_expr(obj)
+        elif isinstance(obj, Wrapper):
+            return self(unwrap(obj))
+        elif isinstance(obj, (Expr, Stmt)):
+            return obj
+
+    @staticmethod
+    def let(*args, **kwargs):
+        if len(args) == 1:
+            kwargs = {**args[0], **kwargs}
+        elif len(args) == 2:
+            lhs, rhs = args
+            return Assign(to_expr(lhs), to_expr(rhs))
+        elif len(args) == 2:
+            lhs, op, rhs = args
+            if op == "=":
+                return S.let(lhs, rhs)
+            op = InplaceOpEnum.from_name(op)
+            return Inplace(op, to_expr(lhs), to_expr(rhs))
+        elif len(args) != 0:
+            raise TypeError("accept at most 3 positional arguments.")
+
+        if len(kwargs) == 0:
+            return Cmd.Pass()
+        elif len(kwargs) == 1:
+            k, v = next(iter(kwargs.items()))
+            return S.let(Name(k), v)
+        else:
+            return Block([S.let(Name(k), v) for k, v in kwargs.items()])
 
 
 expr_meta = Expr._meta
 stmt_meta = Stmt._meta
 sexpr_map = {**expr_meta.sexpr_symbol_map, **stmt_meta.sexpr_symbol_map}
+to_expr = expr_meta.coerce
+to_stmt = stmt_meta.coerce
 py = PyMagic()
+S = SMagic()
